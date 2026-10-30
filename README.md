@@ -1,6 +1,6 @@
 # TradingView Desktop skins
 
-Start TradingView with **TradingView Skinned.cmd**. Close TradingView fully first, including the tray icon.
+Needs [Node.js](https://nodejs.org/en/download) 18 or newer (the launcher tells you if it's missing). Start TradingView with **TradingView Skinned.cmd**. Close TradingView fully first, including the tray icon.
 
 | Hotkey | What it does |
 |---|---|
