@@ -1,0 +1,31 @@
+# Makes a GitHub release with a ready-to-use zip whenever version.json has a version that isn't released yet.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build zip and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(jq -r .version version.json)
+          tag="v$v"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag is already released"
+            exit 0
+          fi
+          name="TradingView-Enhanced-$tag"
+          mkdir "$name"
+          jq -r '.files[]' version.json | while read -r f; do cp "$f" "$name/"; done
+          cp update.json version.json "$name/"
+          zip -r "$name.zip" "$name"
+          gh release create "$tag" "$name.zip" --title "TradingView Enhanced $tag" --generate-notes
