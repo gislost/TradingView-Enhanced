@@ -1,4 +1,4 @@
-// Injected into the TradingView chart page. Alt+Shift+C opens a color theme picker.
+// Injected into the TradingView chart page. Chart color themes and readable drawing text; the UI is in panel.js.
 // Themes: built-in presets matching the skins, plus every theme from chartthemes.com
 // (launch.mjs fetches that list and sets window.__tvChartThemes), plus pasted hex colors.
 (() => {
@@ -21,7 +21,6 @@
   // Remote theme data is untrusted: only well-formed hex colors and escaped names reach the DOM.
   const isHex = v => typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v);
   const valid = t => ['bull', 'bear', 'bg', 'text', 'bullWick', 'bullBorder', 'bearWick', 'bearBorder'].every(k => t[k] === undefined || isHex(t[k]));
-  const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 
   const withAlpha = (hex, a) => {
     const n = parseInt(hex.replace('#', '').slice(0, 6), 16);
@@ -140,62 +139,9 @@
   }
   const fixTimer = setInterval(() => { try { fixText(); } catch (e) { console.warn('[tv-colors]', e); } }, 2000);
 
-  let panel = null;
-  function close() { panel?.remove(); panel = null; }
+  const themes = () => [...PRESETS.map(p => ({ ...p, source: 'built-in' })), ...(window.__tvChartThemes || []).map(fromChartThemes)].filter(valid);
+  const current = () => { try { return localStorage.tvColorTheme || null; } catch { return null; } };
+  const setAutoFix = on => { try { localStorage.tvTextFix = on ? 'on' : 'off'; } catch {} fixText(); };
 
-  function open() {
-    if (panel) return close();
-    const themes = [...PRESETS.map(p => ({ ...p, source: 'built-in' })), ...(window.__tvChartThemes || []).map(fromChartThemes)].filter(valid);
-    panel = document.createElement('div');
-    panel.style.cssText = 'position:fixed;top:56px;right:16px;z-index:99999;width:320px;max-height:75vh;display:flex;flex-direction:column;background:#14101f;color:#eee;border:1px solid #3a2f55;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.6);font:13px system-ui;';
-    panel.innerHTML = `
-      <div style="display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid #2a2340">
-        <b style="flex:1">Chart colors</b><span data-x style="cursor:pointer;opacity:.7">✕</span></div>
-      <input data-q placeholder="Search themes…" style="margin:8px 12px;padding:6px 8px;border-radius:6px;border:1px solid #3a2f55;background:#0d0a16;color:#eee">
-      <div data-list style="overflow:auto;flex:1;padding:0 6px"></div>
-      <div style="padding:8px 12px;border-top:1px solid #2a2340">
-        <textarea data-paste placeholder="Or paste hex colors (chartthemes.com order, or: bull bear background text)" style="width:100%;box-sizing:border-box;height:46px;border-radius:6px;border:1px solid #3a2f55;background:#0d0a16;color:#eee;font:12px monospace"></textarea>
-        <button data-apply style="margin-top:6px;width:100%;padding:6px;border:0;border-radius:6px;background:#7c3aed;color:#fff;cursor:pointer">Apply pasted colors</button>
-        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer"><input data-fix type="checkbox" ${autoFix() ? 'checked' : ''}> Keep drawing text readable</label>
-        <div data-msg style="margin-top:6px;opacity:.7;font-size:12px">${window.__tvChartThemes ? '' : 'chartthemes.com list not loaded (start TradingView with the launcher).'}</div>
-      </div>`;
-    const list = panel.querySelector('[data-list]');
-    const render = q => {
-      list.innerHTML = '';
-      themes.filter(t => t.name.toLowerCase().includes(q.toLowerCase())).forEach(t => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px;border-radius:6px;cursor:pointer';
-        row.onmouseenter = () => (row.style.background = '#221a36');
-        row.onmouseleave = () => (row.style.background = '');
-        row.innerHTML = `<span style="display:flex;width:54px;height:22px;border-radius:4px;overflow:hidden;border:1px solid #333;background:${t.bg}">
-            <i style="width:8px;margin:4px 3px 4px 8px;background:${t.bull}"></i><i style="width:8px;margin:7px 3px;background:${t.bear}"></i><i style="width:8px;margin:3px 3px 6px;background:${t.bull}"></i></span>
-          <span style="flex:1">${esc(t.name)}</span><span style="opacity:.45;font-size:11px">${t.source}</span>`;
-        row.onclick = () => { apply(t); panel.querySelector('[data-msg]').textContent = `Applied ${t.name}`; };
-        list.appendChild(row);
-      });
-    };
-    render('');
-    panel.querySelector('[data-q]').oninput = e => render(e.target.value);
-    panel.querySelector('[data-x]').onclick = close;
-    panel.querySelector('[data-apply]').onclick = () => {
-      const t = parsePasted(panel.querySelector('[data-paste]').value);
-      panel.querySelector('[data-msg]').textContent = t ? (apply(t), 'Applied pasted colors') : 'Need at least 4 hex colors like #1A2B3C';
-    };
-    panel.querySelector('[data-fix]').onchange = e => {
-      try { localStorage.tvTextFix = e.target.checked ? 'on' : 'off'; } catch {}
-      fixText();
-    };
-    // Keep TradingView's own hotkeys from firing while typing in the panel.
-    panel.addEventListener('keydown', e => e.stopPropagation());
-    document.body.appendChild(panel);
-    panel.querySelector('[data-q]').focus();
-  }
-
-  function onKey(e) {
-    if (e.altKey && e.shiftKey && e.code === 'KeyC') { e.preventDefault(); e.stopPropagation(); open(); }
-    else if (e.key === 'Escape' && panel) close();
-  }
-  window.addEventListener('keydown', onKey, true);
-
-  window.__tvColors = { apply, open, fixText, presets: PRESETS, dispose: () => { close(); clearInterval(fixTimer); window.removeEventListener('keydown', onKey, true); } };
+  window.__tvColors = { apply, themes, current, parsePasted, autoFix, setAutoFix, fixText, presets: PRESETS, dispose: () => clearInterval(fixTimer) };
 })();

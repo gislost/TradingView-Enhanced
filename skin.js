@@ -1,10 +1,11 @@
 // Injected into the TradingView chart page. Draws an animated scene behind each chart pane.
-// Alt+Shift+S cycles skins. The choice is remembered in localStorage.
+// Picked in the panel (panel.js); a hotkey (Alt+Shift+S by default) also cycles skins. The choice is remembered in localStorage.
 (() => {
   // Re-injecting replaces the previous copy, so edits apply without restarting TradingView.
   window.__tvSkin?.dispose?.();
 
   const ORDER = ['synthwave', 'aurora', 'galaxy', 'matrix', 'off'];
+  const LABELS = { synthwave: 'Synthwave', aurora: 'Aurora', galaxy: 'Galaxy', matrix: 'Matrix', off: 'None' };
   let current = 'synthwave';
   try { if (ORDER.includes(localStorage.tvSkin)) current = localStorage.tvSkin; } catch {}
 
@@ -223,7 +224,9 @@
     if (document.hidden || now - last < 33) return;
     last = now;
     const t = now / 1000, dpr = window.devicePixelRatio || 1;
-    document.querySelectorAll('canvas.tv-skin-layer').forEach(layer => {
+    // Chart layers show the current skin; the panel's preview tiles each show their own.
+    document.querySelectorAll('canvas.tv-skin-layer, canvas.tv-skin-preview').forEach(layer => {
+      const skin = layer.dataset.skin || current;
       const w = Math.round(layer.clientWidth * dpr), h = Math.round(layer.clientHeight * dpr);
       if (!w || !h) return;
       if (layer.width !== w || layer.height !== h) { layer.width = w; layer.height = h; }
@@ -231,7 +234,7 @@
       const ctx = layer.getContext('2d');
       ctx.save();
       ctx.clearRect(0, 0, w, h);
-      try { if (current !== 'off') SKINS[current](ctx, w, h, t, layer, dpr); } catch (e) { console.warn('[tv-skin]', e); }
+      try { if (SKINS[skin]) SKINS[skin](ctx, w, h, t, layer, dpr); } catch (e) { console.warn('[tv-skin]', e); }
       ctx.restore();
     });
   }
@@ -245,15 +248,35 @@
     setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 1200);
   }
 
-  function set(name) {
+  function set(name, quiet) {
     current = name;
     try { localStorage.tvSkin = name; } catch {}
     redraw();
-    toast(`Chart skin: ${name}`);
+    if (!quiet) toast(`Chart skin: ${LABELS[name]}`);
+    window.dispatchEvent(new Event('tv-skin-change'));
   }
 
+  // Hotkeys, shared with panel.js and changeable in its Settings tab. Stored as e.g. "Alt+Shift+KeyS":
+  // modifiers, then KeyboardEvent.code (so it works the same on any keyboard layout).
+  const KEY_DEFAULTS = { panel: 'Alt+Shift+KeyC', skin: 'Alt+Shift+KeyS' };
+  const saved = () => { try { return JSON.parse(localStorage.tveKeys || '{}'); } catch { return {}; } };
+  const keys = {
+    defaults: KEY_DEFAULTS,
+    recording: false,
+    get: name => saved()[name] || KEY_DEFAULTS[name],
+    set(name, value) {
+      const k = saved();
+      if (value && value !== KEY_DEFAULTS[name]) k[name] = value; else delete k[name];
+      try { localStorage.tveKeys = JSON.stringify(k); } catch {}
+    },
+    combo: e => [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', e.metaKey && 'Win', e.code].filter(Boolean).join('+'),
+    is: (e, name) => !keys.recording && keys.combo(e) === keys.get(name),
+    label: c => c.replace(/(^|\+)(?:Key|Digit)(\w)$/, '$1$2'),
+  };
+  window.__tvKeys = keys;
+
   function onKey(e) {
-    if (e.altKey && e.shiftKey && e.code === 'KeyS') {
+    if (keys.is(e, 'skin')) {
       e.preventDefault();
       e.stopPropagation();
       set(ORDER[(ORDER.indexOf(current) + 1) % ORDER.length]);
@@ -273,5 +296,5 @@
   }
   // Roughly what color sits behind the chart for each skin, so colors.js can keep drawing text readable.
   const BACKDROP = { synthwave: '#1c0833', aurora: '#061a2b', galaxy: '#000000', matrix: '#020a04' };
-  window.__tvSkin = { set, get: () => current, backdrop: () => BACKDROP[current] || null, dispose };
+  window.__tvSkin = { set, get: () => current, list: () => ORDER.map(id => ({ id, label: LABELS[id] })), backdrop: () => BACKDROP[current] || null, dispose };
 })();

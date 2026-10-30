@@ -119,8 +119,8 @@ export const TEMPLATES = [
   },
 ].map(t => ({ ...t, oldName: t.name, name: PREFIX + t.name }));
 
-// Runs inside the TradingView page, using its logged-in session.
-async function pageInstall(templates, mode) {
+// Runs inside the TradingView page, using its logged-in session. The panel's Templates tab uses it too.
+export async function pageInstall(templates, mode) {
   const existing = {};
   const list = async tool => (existing[tool] ||= await (await fetch(`/drawing-templates/${tool}/`, { credentials: 'same-origin' })).json());
   const post = (path, fields) => {

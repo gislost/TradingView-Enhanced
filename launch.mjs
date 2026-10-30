@@ -1,9 +1,10 @@
-// Starts TradingView Desktop with a local debug port and injects skin.js into every chart tab.
+// Starts TradingView Desktop with a local debug port and injects skin.js, colors.js and panel.js into every chart tab.
 // Exits on its own when TradingView closes.
 import { readFileSync } from 'node:fs';
 import { execSync, spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { TEMPLATES, pageInstall } from './templates.mjs';
 
 const PORT = 9222;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -25,10 +26,14 @@ async function chartThemes() {
 }
 
 const themes = await chartThemes();
+const version = JSON.parse(readFileSync(join(here, 'version.json'), 'utf8')).version;
 const skin = [
   `window.__tvChartThemes = ${JSON.stringify(themes)};`,
+  `window.__tvVersion = ${JSON.stringify(version)};`,
+  `window.__tvTemplates = { list: ${JSON.stringify(TEMPLATES)}, install: ${pageInstall} };`,
   readFileSync(join(here, 'skin.js'), 'utf8'),
   readFileSync(join(here, 'colors.js'), 'utf8'),
+  readFileSync(join(here, 'panel.js'), 'utf8'),
 ].join('\n');
 
 async function targets() {
