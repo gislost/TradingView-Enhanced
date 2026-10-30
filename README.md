@@ -30,6 +30,6 @@ node templates.mjs --update   # overwrite these templates with their latest vers
 node templates.mjs --remove   # delete only these templates
 ```
 
-Run these while TradingView is open through the launcher. Template names that already exist are never overwritten. Your original templates are backed up in `backup/drawing-templates-before.json`.
+Run these while TradingView is open through the launcher. Our templates all start with `[TVE]`, so they're easy to tell apart from yours. Copies from older versions without `[TVE]` get renamed, but only if they're unchanged. Template names that already exist are never overwritten. Your original templates are backed up in `backup/drawing-templates-before.json`.
 
 Note: while the launcher is running, TradingView listens on local port 9222. Any program on this PC can control the app through that port.

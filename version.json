@@ -1,4 +1,4 @@
 {
-  "version": 3,
+  "version": 4,
   "files": ["launch.mjs", "update.mjs", "skin.js", "colors.js", "templates.mjs", "README.md", "TradingView Skinned.cmd"]
 }

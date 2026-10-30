@@ -1,5 +1,7 @@
 // ICT drawing templates for TradingView. Saves them to your TradingView account through the
 // running desktop app (started by launch.mjs). Existing template names are never overwritten.
+// Every name starts with "[TVE] " so they're easy to tell apart from your own templates. Copies saved
+// by older versions without the prefix are renamed, but only if they still match what we saved.
 //   node templates.mjs           install missing templates
 //   node templates.mjs --update  also overwrite templates defined here with their latest version
 //   node templates.mjs --list    print what would be installed
@@ -67,6 +69,7 @@ function trend(name, col, { style = SOLID, extend = false } = {}) {
 }
 
 const GREY = [160, 160, 180];
+export const PREFIX = '[TVE] ';
 export const TEMPLATES = [
   // Fibonacci
   fib('OTE + Targets', [[1, GREY], [0.79, BEAR, 'OTE'], [0.705, GOLD, 'OTE'], [0.62, BULL, 'OTE'], [0.5, NEUTRAL, 'EQ'], [0, GREY],
@@ -114,18 +117,46 @@ export const TEMPLATES = [
       precision: 'default',
     },
   },
-];
+].map(t => ({ ...t, oldName: t.name, name: PREFIX + t.name }));
 
 // Runs inside the TradingView page, using its logged-in session.
 async function pageInstall(templates, mode) {
   const existing = {};
   const list = async tool => (existing[tool] ||= await (await fetch(`/drawing-templates/${tool}/`, { credentials: 'same-origin' })).json());
+  const post = (path, fields) => {
+    const body = new FormData();
+    for (const [k, v] of Object.entries(fields)) body.append(k, v);
+    return fetch(path, { method: 'POST', credentials: 'same-origin', body });
+  };
+  // Key order and label text don't count, so older versions with different labels still match.
+  const sameStyle = (a, b) => {
+    const norm = v => v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.keys(v).sort().map(k => [k, norm(v[k])])) : v;
+    const { text: _a, ...x } = a, { text: _b, ...y } = b;
+    return JSON.stringify(norm(x)) === JSON.stringify(norm(y));
+  };
+  // An unprefixed template from an older version, if it's there and still exactly ours.
+  const oldCopy = async t => {
+    if (!(await list(t.tool)).includes(t.oldName)) return false;
+    const r = await fetch(`/drawing-template/${t.tool}/?templateName=${encodeURIComponent(t.oldName)}`, { credentials: 'same-origin' });
+    try { return r.ok && sameStyle(JSON.parse((await r.json()).content), t.content); } catch { return false; }
+  };
   const out = [];
   for (const t of templates) {
     const have = (await list(t.tool)).includes(t.name);
+    const old = await oldCopy(t);
     const body = new FormData();
     body.append('name', t.name);
     body.append('tool', t.tool);
+    if (old) {
+      if (mode !== 'remove' && !have) {
+        const r = await post('/save-drawing-template/', { name: t.name, tool: t.tool, content: JSON.stringify(t.content) });
+        if (!r.ok) { out.push(`FAILED ${r.status} ${t.name}`); continue; }
+      }
+      const r = await post('/remove-drawing-template/', { name: t.oldName, tool: t.tool });
+      out.push(`${r.ok ? (mode === 'remove' ? 'removed' : 'renamed') : 'FAILED ' + r.status} ${t.oldName}${mode === 'remove' ? '' : ' -> ' + t.name}`);
+      if (mode !== 'remove' && !have) continue;
+    }
     if (mode === 'remove') {
       if (!have) { out.push(`absent  ${t.name}`); continue; }
       const r = await fetch('/remove-drawing-template/', { method: 'POST', credentials: 'same-origin', body });
