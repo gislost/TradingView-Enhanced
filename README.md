@@ -1,6 +1,16 @@
-# TradingView Desktop skins
+# TradingView Enhanced
 
-Needs [Node.js](https://nodejs.org/en/download) 18 or newer (the launcher tells you if it's missing). Start TradingView with **TradingView Skinned.cmd**. Close TradingView fully first, including the tray icon.
+Chart skins, a chart color picker, readable drawing text and ICT drawing templates for TradingView Desktop.
+
+## Install
+
+1. Install [Node.js](https://nodejs.org/en/download) (the LTS version). If you skip this, the launcher tells you and opens the download page.
+2. Download the zip from the [latest release](https://github.com/gislost/TradingView-Enhanced/releases/latest) and unzip it somewhere you'll keep it.
+3. Close TradingView fully, including the tray icon, then open it with **TradingView Skinned.cmd**. Tip: right-click it and make a desktop shortcut.
+
+It updates itself: each time you start TradingView with **TradingView Skinned.cmd**, it downloads the newest version if there is one.
+
+## Use
 
 | Hotkey | What it does |
 |---|---|
@@ -11,25 +21,18 @@ The color picker changes the chart's own colors (candles, background, grid, scal
 
 Drawing text that's hard to read against the current skin or background is automatically made lighter or darker (same hue). Your original colors come back when you switch to a background they read well on. You can turn this off in the color picker ("Keep drawing text readable").
 
-## Updates
-
-`TradingView Skinned.cmd` runs `update.mjs` first. If `update.json` has a `source`, it checks that address for a newer `version.json`, downloads the listed files, and then starts TradingView. If there's no source or no internet, it just starts TradingView.
-
-Updates come from https://github.com/gislost/TradingView-Enhanced. To ship one, push the changed files and raise the `version` number in `version.json`. Everyone gets it the next time they start TradingView, and a new zip appears under Releases automatically.
-
-To install, download the zip from the latest release at https://github.com/gislost/TradingView-Enhanced/releases/latest, unzip it, and run `TradingView Skinned.cmd`.
-
-Anyone who can push to that repository can change code that runs on your and your friends' PCs, so keep it to your own account.
-
 ## Drawing templates
 
+With TradingView open through the launcher, open a command prompt in this folder (type `cmd` in the File Explorer address bar and press Enter) and run:
+
 ```
-node templates.mjs            # save any missing ICT templates to your account
-node templates.mjs --list     # show them
-node templates.mjs --update   # overwrite these templates with their latest version
-node templates.mjs --remove   # delete only these templates
+node templates.mjs            # add the ICT templates to your account
+node templates.mjs --update   # get the latest version of them
+node templates.mjs --remove   # delete them again
 ```
 
-Run these while TradingView is open through the launcher. Our templates all start with `[TVE]`, so they're easy to tell apart from yours. Copies from older versions without `[TVE]` get renamed, but only if they're unchanged. Template names that already exist are never overwritten. Your original templates are backed up in `backup/drawing-templates-before.json`.
+They all start with `[TVE]`, so they're easy to tell apart from your own. Your own templates are never changed or deleted.
 
-Note: while the launcher is running, TradingView listens on local port 9222. Any program on this PC can control the app through that port.
+## Good to know
+
+While the launcher is running, TradingView listens on local port 9222. Any program on this PC can control the app through that port.
