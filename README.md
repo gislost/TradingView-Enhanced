@@ -5,10 +5,14 @@ Chart skins, a chart color picker, readable drawing text and ICT drawing templat
 ## Install
 
 1. Install [Node.js](https://nodejs.org/en/download) (the LTS version). If you skip this, the launcher tells you and opens the download page.
-2. Download the zip from the [latest release](https://github.com/gislost/TradingView-Enhanced/releases/latest) and unzip it somewhere you'll keep it.
-3. Close TradingView fully, including the tray icon, then open it with **TradingView Skinned.cmd**. Tip: right-click it and make a desktop shortcut.
+2. Download the zip from the [latest release](https://github.com/gislost/TradingView-Enhanced/releases/latest) and unzip it somewhere you'll keep it, like `C:\Users\<you>\TradingView-Enhanced`.
+3. Double-click **TradingView Skinned.cmd**. If TradingView is already open, it closes it and opens it again with the mod.
 
-It updates itself: each time you start TradingView with **TradingView Skinned.cmd**, it downloads the newest version if there is one.
+The first run also adds a **TradingView Enhanced** shortcut to your desktop and Start menu. Use that from then on. To pin it, right-click it in the Start menu and choose **Pin to taskbar**. If TradingView is already running with the mod, it brings TradingView to the front.
+
+It updates itself: each time you start TradingView this way, it downloads the newest version if there is one.
+
+The palette button, backgrounds and hotkeys only work when TradingView was started this way. If you open TradingView normally, only the chart color themes stay. While it's running, a minimized "TradingView skins" window stays open. That's the launcher, and it closes by itself when TradingView closes. If something doesn't start, `tve-launch.log` and `tve-launcher.log` in the same folder say what happened.
 
 ## Use
 

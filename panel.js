@@ -186,7 +186,11 @@
     const run = mode => async () => {
       for (const b of btns.children) b.disabled = true;
       log.textContent = 'Working…';
-      try { log.textContent = (await T.install(T.list, mode)).join('\n'); } catch (e) { log.textContent = `Failed: ${e.message}`; }
+      // TradingView loads each tool's template menu once and keeps it until restart, so a menu
+      // that was already opened won't show the change yet.
+      try {
+        log.textContent = [...await T.install(T.list, mode), '', 'If a drawing tool’s Template menu doesn’t show the change, restart TradingView.'].join('\n');
+      } catch (e) { log.textContent = `Failed: ${e.message}`; }
       for (const b of btns.children) b.disabled = false;
       refresh();
     };
@@ -255,7 +259,7 @@
       el('p', { className: 'tve-note', style: 'margin:0', textContent: 'Text that’s hard to read on the current background is made lighter or darker, keeping its color. Your original colors come back on backgrounds they read well on.' }),
       el('div', { className: 'tve-h', textContent: 'Hotkeys' }), keys, keyNote,
       el('div', { className: 'tve-h', textContent: 'Updates' }),
-      el('p', { className: 'tve-note', style: 'margin:0', textContent: `Version ${window.__tvVersion ?? '?'}. Updates install by themselves when you start TradingView with TradingView Skinned.cmd.` }));
+      el('p', { className: 'tve-note', style: 'margin:0', textContent: `Version ${window.__tvVersion ?? '?'}. Updates install by themselves when you start TradingView with the TradingView Enhanced shortcut.` }));
   }
 
   // ── Toolbar button ───────────────────────────────────────────────────────

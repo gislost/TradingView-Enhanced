@@ -51,17 +51,26 @@ if (!(await targets())) {
   for (let i = 0; i < 60 && !(await targets()); i++) await sleep(500);
 }
 
-const attached = new Set();
+// Each attached tab is re-checked every loop: if the page was still loading when we first injected,
+// the panel can be missing, so inject again (a few times at most, so a broken script can't stack up).
+// Re-injecting is safe because skin.js, colors.js and panel.js each dispose their previous instance first.
+const attached = new Map();
 function attach(t) {
-  attached.add(t.id);
   const ws = new WebSocket(t.webSocketDebuggerUrl);
-  let id = 0;
-  const send = (method, params) => ws.send(JSON.stringify({ id: ++id, method, params }));
+  let id = 0, checkId = 0, retries = 0;
+  const send = (method, params) => { ws.send(JSON.stringify({ id: ++id, method, params })); return id; };
   ws.onopen = () => {
     send('Page.addScriptToEvaluateOnNewDocument', { source: skin });
     send('Runtime.evaluate', { expression: skin });
   };
+  ws.onmessage = m => {
+    const r = JSON.parse(m.data);
+    if (r.id === checkId && r.result?.result?.value === false && retries++ < 3) send('Runtime.evaluate', { expression: skin });
+  };
   ws.onclose = () => attached.delete(t.id);
+  attached.set(t.id, () => {
+    if (ws.readyState === WebSocket.OPEN) checkId = send('Runtime.evaluate', { expression: '!!window.__tvPanel', returnByValue: true });
+  });
 }
 
 let misses = 0;
@@ -72,5 +81,6 @@ while (misses < 3) {
   for (const t of list) {
     if (t.type === 'page' && /tradingview\.com/.test(t.url) && !attached.has(t.id)) attach(t);
   }
+  for (const check of attached.values()) check();
   await sleep(2000);
 }
