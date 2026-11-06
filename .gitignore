@@ -3,3 +3,5 @@ node_modules/
 TradingView Enhanced.exe
 tve-launch.log
 tve-launcher.log
+claude-key.txt
+*.log

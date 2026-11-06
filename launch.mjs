@@ -34,7 +34,23 @@ const skin = [
   readFileSync(join(here, 'skin.js'), 'utf8'),
   readFileSync(join(here, 'colors.js'), 'utf8'),
   readFileSync(join(here, 'panel.js'), 'utf8'),
+  readFileSync(join(here, 'ai.js'), 'utf8'),
 ].join('\n');
+
+// "Ask Claude" bridge (claude.mjs). Needs the Anthropic SDK; installed on first run. If that fails,
+// everything else still works and the Ask Claude popup says what's wrong.
+async function loadClaude() {
+  try { return await import('./claude.mjs'); } catch {}
+  try {
+    console.log('Installing the Anthropic SDK for Ask Claude...');
+    execSync('npm install --no-fund --no-audit', { cwd: here, stdio: 'ignore' });
+    return await import('./claude.mjs');
+  } catch (e) {
+    console.log('Ask Claude unavailable:', e.message);
+    return null;
+  }
+}
+const claude = await loadClaude();
 
 async function targets() {
   try { return await (await fetch(`${BASE}/json/list`)).json(); } catch { return null; }
@@ -59,12 +75,21 @@ function attach(t) {
   const ws = new WebSocket(t.webSocketDebuggerUrl);
   let id = 0, checkId = 0, retries = 0;
   const send = (method, params) => { ws.send(JSON.stringify({ id: ++id, method, params })); return id; };
+  // Page -> Node: the page calls window.__tvClaude(json). Node -> page: window.__tvAI.receive(obj).
+  const reply = obj => {
+    if (ws.readyState === WebSocket.OPEN) send('Runtime.evaluate', { expression: `window.__tvAI?.receive(${JSON.stringify(obj)})` });
+  };
   ws.onopen = () => {
+    if (claude) {
+      send('Runtime.enable');
+      send('Runtime.addBinding', { name: '__tvClaude' });
+    }
     send('Page.addScriptToEvaluateOnNewDocument', { source: skin });
     send('Runtime.evaluate', { expression: skin });
   };
   ws.onmessage = m => {
     const r = JSON.parse(m.data);
+    if (r.method === 'Runtime.bindingCalled' && r.params?.name === '__tvClaude') return claude?.handle(r.params.payload, reply);
     if (r.id === checkId && r.result?.result?.value === false && retries++ < 3) send('Runtime.evaluate', { expression: skin });
   };
   ws.onclose = () => attached.delete(t.id);

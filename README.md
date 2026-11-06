@@ -25,6 +25,17 @@ Click the palette button in TradingView's top toolbar (next to the search button
 
 You can change both hotkeys in **Settings**: click one and press the new keys. Esc or clicking outside closes the panel.
 
+### Ask Claude (ICT)
+
+Your own version of TradingView's AI range feature, using your Claude API key. Select a range on the chart and click **✦ Ask Claude** (it shows under TradingView's range menu), or press **Alt+Shift+Q** to ask about the current selection or the visible range. Pick **Explain the move**, **News behind it**, **PD arrays & liquidity** or **Narrative & bias**, or type your own question. Follow-up questions keep the conversation.
+
+Claude gets the bars in New York time plus ICT reference levels computed from the loaded bars (previous day, Asia, London and NY AM highs and lows, midnight/08:30/09:30 opens), and can search the web for news. Answers use ICT terms: killzones, liquidity sweeps, MSS/BOS, FVGs, order blocks, premium/discount, OTE, Power of 3.
+
+- **Key**: the first time, paste your key into the popup. It's saved in `claude-key.txt` in this folder (or set `ANTHROPIC_API_KEY`). The key stays in the launcher process and is never put into the TradingView page. `.gitignore` keeps it out of git.
+- **Read-only**: Claude's only tool is web search. It cannot place, change or cancel orders, touch your broker, or draw on or change the chart. Its answers are shown as text and are never run.
+- **Cost**: each question is billed to your API account. Model: `claude-opus-5-5` (set `TVE_CLAUDE_MODEL` to use another).
+- The first launch after updating installs the Anthropic SDK (`npm install`) automatically.
+
 ## Good to know
 
 While the launcher is running, TradingView listens on local port 9222. Any program on this PC can control the app through that port.

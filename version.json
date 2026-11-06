@@ -1,4 +1,17 @@
 {
-  "version": 7,
-  "files": ["launch.mjs", "update.mjs", "skin.js", "colors.js", "templates.mjs", "README.md", "TradingView Skinned.cmd", "panel.js", "setup.mjs"]
+  "version": 8,
+  "files": [
+    "launch.mjs",
+    "update.mjs",
+    "skin.js",
+    "colors.js",
+    "templates.mjs",
+    "README.md",
+    "TradingView Skinned.cmd",
+    "panel.js",
+    "setup.mjs",
+    "ai.js",
+    "claude.mjs",
+    "package.json"
+  ]
 }
