@@ -27,15 +27,26 @@
     return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
   };
 
+  // With an animated skin on, the chart area is see-through but the price/time scales and legend boxes still
+  // paint the theme background. A light theme (e.g. "Love For The Game", #FFF0F5) then shows as washed-out
+  // boxes over the dark scene, so the skin's own backdrop color stands in for the theme background.
+  // With the skin off, the theme's real background is used.
+  const themeBg = t => window.__tvSkin?.backdrop?.() || t.bg;
   function overridesFor(t) {
     const up = t.bull, down = t.bear;
+    const bg = themeBg(t);
+    let text = t.text;
+    if (bg !== t.bg) {
+      const fixed = readable(parseColor(t.text), parseColor(bg));
+      if (fixed) text = '#' + fixed.map(v => v.toString(16).padStart(2, '0')).join('');
+    }
     const o = {
       'paneProperties.backgroundType': 'solid',
-      'paneProperties.background': t.bg,
-      'paneProperties.vertGridProperties.color': withAlpha(t.text, 0.06),
-      'paneProperties.horzGridProperties.color': withAlpha(t.text, 0.06),
-      'scalesProperties.textColor': t.text,
-      'scalesProperties.lineColor': withAlpha(t.text, 0.15),
+      'paneProperties.background': bg,
+      'paneProperties.vertGridProperties.color': withAlpha(text, 0.06),
+      'paneProperties.horzGridProperties.color': withAlpha(text, 0.06),
+      'scalesProperties.textColor': text,
+      'scalesProperties.lineColor': withAlpha(text, 0.15),
       'mainSeriesProperties.barStyle.upColor': up,
       'mainSeriesProperties.barStyle.downColor': down,
     };
@@ -59,8 +70,35 @@
     const api = window.TradingViewApi;
     const n = api.chartsCount ? api.chartsCount() : 1;
     for (let i = 0; i < n; i++) api.chart(i).applyOverrides(overridesFor(t));
-    try { localStorage.tvColorTheme = t.name; } catch {}
+    try { localStorage.tvColorTheme = t.name; localStorage.tvColorThemeData = JSON.stringify(t); } catch {}
   }
+
+  // The theme last picked (stored, or looked up by name for themes picked before it was stored).
+  function lastTheme() {
+    try {
+      const t = JSON.parse(localStorage.tvColorThemeData || 'null');
+      if (t && valid(t) && isHex(t.bg) && isHex(t.text)) return t;
+    } catch {}
+    const name = current();
+    return name ? themes().find(x => x.name === name) || null : null;
+  }
+  // Re-apply it when the skin changes, since the backdrop changes with it.
+  function reapply() {
+    const t = lastTheme();
+    if (t && window.TradingViewApi?.chart) apply(t);
+  }
+  window.addEventListener('tv-skin-change', reapply);
+  // Once at startup: fix a chart whose background doesn't match the theme + skin (e.g. a light theme picked
+  // before this fix). Leaves it alone when it already matches, so manual tweaks elsewhere aren't overwritten.
+  const startupTimer = setInterval(() => {
+    let chart;
+    try { chart = window.TradingViewApi.chart(0); chart.chartModel().backgroundColor().value(); } catch { return; }
+    clearInterval(startupTimer);
+    const t = lastTheme();
+    if (!t) return;
+    const have = parseColor(chart.chartModel().backgroundColor().value()), want = parseColor(themeBg(t));
+    if (!have || have.slice(0, 3).join() !== want.slice(0, 3).join()) apply(t);
+  }, 1500);
 
   // Accepts chartthemes.com hex values pasted in page order
   // (bear body, bear wick, bear border, bull body, bull wick, bull border, background, foreground, text),
@@ -143,5 +181,7 @@
   const current = () => { try { return localStorage.tvColorTheme || null; } catch { return null; } };
   const setAutoFix = on => { try { localStorage.tvTextFix = on ? 'on' : 'off'; } catch {} fixText(); };
 
-  window.__tvColors = { apply, themes, current, parsePasted, autoFix, setAutoFix, fixText, presets: PRESETS, dispose: () => clearInterval(fixTimer) };
+  window.__tvColors = { apply, themes, current, parsePasted, autoFix, setAutoFix, fixText, presets: PRESETS,
+    dispose: () => { clearInterval(fixTimer); clearInterval(startupTimer); window.removeEventListener('tv-skin-change', reapply); },
+  };
 })();
