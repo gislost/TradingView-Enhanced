@@ -63,6 +63,13 @@ try {
       $l.Save()
     }`, { TVE_EXE: exe, TVE_DIR: here });
   console.log('Made TradingView Enhanced.exe and its Start menu and desktop shortcuts.');
+
+  // Windows doesn't let programs pin themselves to the taskbar, so show the exe and say how. This waits for
+  // OK, which only holds up TradingView's start on this first run.
+  const pinNote = `Start-Process explorer.exe ('/select,"' + $env:TVE_EXE + '"')
+    Add-Type -AssemblyName System.Windows.Forms
+    [System.Windows.Forms.MessageBox]::Show("TradingView Enhanced is set up, with shortcuts on your desktop and in the Start menu.\`n\`nTo pin it to the taskbar: in the folder that just opened, right-click TradingView Enhanced.exe, choose Show more options, then Pin to taskbar.\`n\`nAlways start TradingView from that pin or the shortcuts. The TradingView icon that shows on the taskbar while it's running opens TradingView without the mod.", 'TradingView Enhanced') | Out-Null`;
+  try { ps(pinNote, { TVE_EXE: exe }); } catch {}
 } catch (e) {
   console.log(`Couldn't make TradingView Enhanced.exe: ${e.stderr?.toString().trim() || e.message}`);
 } finally {

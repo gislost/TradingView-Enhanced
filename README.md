@@ -8,7 +8,7 @@ Chart skins, a chart color picker, readable drawing text and ICT drawing templat
 2. Download the zip from the [latest release](https://github.com/gislost/TradingView-Enhanced/releases/latest) and unzip it somewhere you'll keep it, like `C:\Users\<you>\TradingView-Enhanced`.
 3. Double-click **TradingView Skinned.cmd**. If TradingView is already open, it closes it and opens it again with the mod.
 
-The first run also adds a **TradingView Enhanced** shortcut to your desktop and Start menu. Use that from then on. To pin it, right-click it in the Start menu and choose **Pin to taskbar**. If TradingView is already running with the mod, it brings TradingView to the front.
+The first run also adds a **TradingView Enhanced** shortcut to your desktop and Start menu, and opens the folder with a message saying how to pin it. Use that from then on. To pin it, right-click **TradingView Enhanced.exe** in the folder (or **TradingView Enhanced** in the Start menu), choose **Show more options** if you see it, then **Pin to taskbar**. Don't pin the TradingView icon that shows while it's running: that one opens TradingView without the mod. If TradingView is already running with the mod, it brings TradingView to the front.
 
 It updates itself: each time you start TradingView this way, it downloads the newest version if there is one.
 
