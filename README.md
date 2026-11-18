@@ -20,7 +20,7 @@ Click the palette button in TradingView's top toolbar (next to the search button
 
 - **Backgrounds**: animated chart backgrounds (Synthwave, Aurora, Galaxy, Matrix) or none. **Alt+Shift+S** cycles them without opening the panel.
 - **Colors**: chart color themes (built-in ones plus the chartthemes.com collection), or paste your own hex colors. These change the chart's own colors, so they stay after TradingView restarts, even without the launcher.
-- **Templates**: add the ICT drawing templates to your account, update them, or remove them. They all start with `[TVE]`, so they're easy to tell apart from your own, and your own templates are never changed or deleted.
+- **Templates**: add the ICT drawing templates to your account, update them, or remove them. They all start with `[TVE]`, so they're easy to tell apart from your own, and your own templates are never changed or deleted. The PD array boxes (FVG, OB, RB, BB, IFVG, BPR, NWOG, NDOG and the first presented gaps FPFVG, FPRFVG and FPDFVG) extend right with their label, so they stay on the chart as reference levels; group them in Object Tree folders to show or hide them together. After an update, click **Update** here to get the new versions.
 - **Settings**: "Keep drawing text readable" makes drawing text that's hard to read on the current background lighter or darker (same hue). Your original colors come back on backgrounds they read well on.
 
 You can change both hotkeys in **Settings**: click one and press the new keys. Esc or clicking outside closes the panel.
