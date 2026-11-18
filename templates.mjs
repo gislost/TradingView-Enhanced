@@ -80,14 +80,16 @@ export const TEMPLATES = [
   fib('Octants', [[1, GREY], [0.875, BULL], [0.75, BULL], [0.625, BULL], [0.5, NEUTRAL, 'EQ'], [0.375, BEAR], [0.25, BEAR], [0.125, BEAR], [0, GREY]]),
   fib('STDV Projections', [[1, GREY], [0, GREY], [-1, BSL, '-1'], [-1.5, NEUTRAL, '-1.5'], [-2, GOLD, '-2'], [-2.5, BEAR, '-2.5'], [-4, SSL, '-4']], { fill: false }),
 
-  // PD arrays. These extend right with their label, so they stay on the chart as reference levels
-  // (group them in Object Tree folders to show/hide them together).
-  pd('Bullish FVG', BULL, { mid: true }), pd('Bearish FVG', BEAR, { mid: true }),
-  pd('Bullish OB', BULL, { mid: true }), pd('Bearish OB', BEAR, { mid: true }),
-  pd('Bullish RB', BULL, { style: DASHED }), pd('Bearish RB', BEAR, { style: DASHED }),
-  pd('Bullish BB', BULL, { width: 2, fill: 0.12 }), pd('Bearish BB', BEAR, { width: 2, fill: 0.12 }),
-  pd('Bullish IFVG', BULL, { fill: 0.1, style: DOTTED, mid: true }), pd('Bearish IFVG', BEAR, { fill: 0.1, style: DOTTED, mid: true }),
-  pd('BPR', NEUTRAL, { mid: true }),
+  // PD arrays (stop where you draw them)
+  rect('Bullish FVG', BULL, { mid: true }), rect('Bearish FVG', BEAR, { mid: true }),
+  rect('Bullish OB', BULL, { mid: true }), rect('Bearish OB', BEAR, { mid: true }),
+  rect('Bullish RB', BULL, { style: DASHED }), rect('Bearish RB', BEAR, { style: DASHED }),
+  rect('Bullish BB', BULL, { width: 2, fill: 0.12 }), rect('Bearish BB', BEAR, { width: 2, fill: 0.12 }),
+  rect('Bullish IFVG', BULL, { fill: 0.1, style: DOTTED, mid: true }), rect('Bearish IFVG', BEAR, { fill: 0.1, style: DOTTED, mid: true }),
+  rect('BPR', NEUTRAL, { mid: true }),
+
+  // Gaps that stay relevant: these extend right with their label so they stay on the chart as reference
+  // levels (group them in Object Tree folders to show/hide them together).
   pd('NWOG', GOLD, { fill: 0.14, mid: true }), pd('NDOG', GOLD, { fill: 0.07, style: DASHED, mid: true }),
 
   // First presented gaps: FPFVG (first FVG of the session), FPRFVG (first presented reflection FVG) and
