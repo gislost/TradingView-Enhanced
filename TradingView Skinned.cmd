@@ -12,8 +12,8 @@ for /f "tokens=1 delims=v." %%v in ('node -v 2^>nul') do set "NODEVER=%%v"
 if not defined NODEVER goto neednode
 if %NODEVER% LSS 18 goto neednode
 
-rem First run: build the pinnable "TradingView Enhanced.exe" and its Start menu and desktop shortcuts.
-if not exist "%~dp0TradingView Enhanced.exe" node "%~dp0setup.mjs" >>"%LOG%" 2>&1
+rem First run (or after the shortcuts were removed): make the Start menu and desktop shortcuts.
+if not exist "%APPDATA%\Microsoft\Windows\Start Menu\Programs\TradingView Enhanced.lnk" node "%~dp0setup.mjs" >>"%LOG%" 2>&1
 
 curl -s -m 2 http://127.0.0.1:9222/json/version >nul 2>&1
 if errorlevel 1 goto notskinned
