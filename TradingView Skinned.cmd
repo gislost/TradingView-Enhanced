@@ -16,10 +16,18 @@ rem First run: build the pinnable "TradingView Enhanced.exe" and its Start menu 
 if not exist "%~dp0TradingView Enhanced.exe" node "%~dp0setup.mjs" >>"%LOG%" 2>&1
 
 curl -s -m 2 http://127.0.0.1:9222/json/version >nul 2>&1
+if errorlevel 1 goto notskinned
+rem The debug port is open. If the launcher is running too, just bring TradingView to the front. If not,
+rem it's left over from an earlier start (often only in the tray, with no window), so restart it.
+powershell -NoProfile -Command "exit [int]!(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | ? { $_.CommandLine -match 'update\.mjs|launch\.mjs' })"
 if not errorlevel 1 goto front
+echo TradingView open but the launcher isn't running, restarting it>>"%LOG%"
+goto restart
+:notskinned
 tasklist /FI "IMAGENAME eq TradingView.exe" /NH | find /I "TradingView.exe" >nul
 if errorlevel 1 goto launch
 echo TradingView running without skins, closing it>>"%LOG%"
+:restart
 taskkill /IM TradingView.exe /F >nul 2>&1
 rem Wait for every TradingView process to be gone, up to ~10 seconds.
 for /L %%i in (1,1,10) do (
