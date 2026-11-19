@@ -1,10 +1,12 @@
 // Starts TradingView Desktop with a local debug port and injects skin.js, colors.js and panel.js into every chart tab.
+// Also pulls the Pine indicators in the repo's indicators/ folder for the panel's Indicators tab.
 // Exits on its own when TradingView closes.
 import { readFileSync } from 'node:fs';
 import { execSync, spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEMPLATES, pageInstall } from './templates.mjs';
+import { pull as pullIndicators, load as loadIndicators, pageSave as saveIndicators } from './indicators.mjs';
 
 const PORT = 9222;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -26,11 +28,15 @@ async function chartThemes() {
 }
 
 const themes = await chartThemes();
+// Pine indicators from the repo's indicators/ folder (see indicators.mjs).
+console.log('Indicators:', await pullIndicators());
+const indicators = loadIndicators();
 const version = JSON.parse(readFileSync(join(here, 'version.json'), 'utf8')).version;
 const skin = [
   `window.__tvChartThemes = ${JSON.stringify(themes)};`,
   `window.__tvVersion = ${JSON.stringify(version)};`,
   `window.__tvTemplates = { list: ${JSON.stringify(TEMPLATES)}, install: ${pageInstall} };`,
+  `window.__tvIndicators = { list: ${JSON.stringify(indicators)}, save: ${saveIndicators} };`,
   readFileSync(join(here, 'skin.js'), 'utf8'),
   readFileSync(join(here, 'colors.js'), 'utf8'),
   readFileSync(join(here, 'panel.js'), 'utf8'),

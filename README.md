@@ -21,9 +21,21 @@ Click the palette button in TradingView's top toolbar (next to the search button
 - **Backgrounds**: animated chart backgrounds (Synthwave, Aurora, Galaxy, Matrix) or none. **Alt+Shift+S** cycles them without opening the panel.
 - **Colors**: chart color themes (built-in ones plus the chartthemes.com collection), or paste your own hex colors. These change the chart's own colors, so they stay after TradingView restarts, even without the launcher.
 - **Templates**: add the ICT drawing templates to your account, update them, or remove them. They all start with `[TVE]`, so they're easy to tell apart from your own, and your own templates are never changed or deleted. The gaps that stay relevant (NWOG, NDOG and the first presented gaps FPFVG, FPRFVG and FPDFVG) extend right with their label, so they stay on the chart as reference levels; group them in Object Tree folders to show or hide them together. After an update, click **Update** here to get the new versions.
+- **Indicators**: Pine indicators from this repo's `indicators/` folder, saved to your account as private scripts. See [Indicators](#indicators) below.
 - **Settings**: "Keep drawing text readable" makes drawing text that's hard to read on the current background lighter or darker (same hue). Your original colors come back on backgrounds they read well on.
 
 You can change both hotkeys in **Settings**: click one and press the new keys. Esc or clicking outside closes the panel.
+
+### Indicators
+
+Each time it starts, the launcher downloads every `.pine` file in the repo's `indicators/` folder into the local `indicators` folder. Files that only exist on your PC are kept, so you can also drop your own there. In the panel, **Indicators** → **Save / update in my TradingView** compiles each one and saves it as a private script; only scripts with the same names are changed. Then add them from **Indicators → My scripts** on the chart. TradingView keeps that list until it restarts, so restart it to see new scripts or updates.
+
+- **TVE First Presented FVGs**: for the New York session, it shows FPFVG (the first FVG in 09:30–10:00), FPDFVG (the first one with a displacement candle), FPRFVG (the first opposite FVG after the FPFVG) and SB FPFVG (the first FVG in the 10:00–11:00 Silver Bullet window). They extend right with a CE line, and the last 5 days are shown by default. Each type has its own on/off switch and color, and the windows and the displacement size can be changed.
+  - **Fix a day**: picking the FPFVG is discretionary, so Settings has 5 correction slots. Set a slot to *Use this candle* and choose the type and the date and time of the gap's middle candle, and that gap replaces the automatic pick for that day (its label gets a ✎). *Hide that day* removes that type for that day.
+- **TVE NDOG NWOG**: New Day and New Week Opening Gaps, extended right with a CE line. Keeps the last 5 NDOGs and 4 NWOGs, and each can be turned off.
+- **TVE All-in-One**: built automatically from all the others, so one indicator slot holds everything, with each part's switches in its Settings.
+
+Writing your own: put one indicator per `.pine` file in `indicators/`, and add a line `// @tve-body` after the `indicator(...)` call. Everything below that line is copied into the All-in-One, so give your variables and functions their own prefix (`fp_`, `og_`, ...) so they can't clash with another indicator's. `node indicators.mjs --check` compiles them all, and `--build` writes the All-in-One to `indicators/TVE All-in-One.pine` (not committed).
 
 ### Ask Claude (ICT)
 

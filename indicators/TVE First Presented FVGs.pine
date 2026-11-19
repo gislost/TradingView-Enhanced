@@ -1,0 +1,142 @@
+//@version=6
+// @description First presented FVGs of the New York session, extended right: FPFVG (first FVG in 09:30-10:00), FPDFVG (first one with displacement), FPRFVG (first opposite FVG after the FPFVG) and the Silver Bullet FPFVG (first FVG in 10:00-11:00). Shows the last week by default. Each day's pick can be corrected or hidden in Settings > Fix a day.
+indicator("TVE First Presented FVGs", "TVE FPFVG", overlay = true, max_boxes_count = 500, max_lines_count = 500)
+
+// @tve-body  (everything below this line is copied into TVE All-in-One, so names start with fp_)
+
+fp_TZ = "America/New_York"
+fp_G = "First presented FVGs"
+fp_days     = input.int(5, "Days to show", minval = 1, maxval = 60, group = fp_G)
+fp_win      = input.session("0930-1000", "FPFVG window (NY)", group = fp_G)
+fp_sbWin    = input.session("1000-1100", "Silver Bullet window (NY)", group = fp_G)
+fp_dispMult = input.float(1.5, "Displacement: middle candle body ≥ x average body", minval = 0.5, step = 0.1, group = fp_G, tooltip = "Average of the last 20 candle bodies. Used for FPDFVG.")
+fp_minTicks = input.int(0, "Minimum gap (ticks)", minval = 0, group = fp_G)
+fp_showCE   = input.bool(true, "CE (50%) line", group = fp_G)
+fp_showDay  = input.bool(true, "Weekday in label", group = fp_G)
+
+fp_on0  = input.bool(true, "FPFVG", inline = "t0", group = fp_G)
+fp_col0 = input.color(color.new(#FFC857, 78), "", inline = "t0", group = fp_G)
+fp_on1  = input.bool(true, "FPDFVG", inline = "t1", group = fp_G)
+fp_col1 = input.color(color.new(#FF8A3D, 75), "", inline = "t1", group = fp_G)
+fp_on2  = input.bool(true, "FPRFVG", inline = "t2", group = fp_G)
+fp_col2 = input.color(color.new(#B388FF, 80), "", inline = "t2", group = fp_G)
+fp_on3  = input.bool(true, "SB FPFVG", inline = "t3", group = fp_G)
+fp_col3 = input.color(color.new(#22D3EE, 80), "", inline = "t3", group = fp_G)
+
+// Corrections. FPFVGs are discretionary: point a slot at the middle candle of the gap you want, or hide a day.
+fp_GF = "Fix a day"
+fp_TIP = "Use this candle: set the date and time of the middle (2nd) candle of the gap you want; it replaces that day's automatic pick. Hide that day: any time on that day."
+fp_TYPES = array.from("FPFVG", "FPDFVG", "FPRFVG", "SB FPFVG")
+fp_MODES = array.from("Off", "Use this candle", "Hide that day")
+fp_m1 = input.string("Off", "1", options = ["Off", "Use this candle", "Hide that day"], inline = "f1", group = fp_GF)
+fp_k1 = input.string("FPFVG", "", options = ["FPFVG", "FPDFVG", "FPRFVG", "SB FPFVG"], inline = "f1", group = fp_GF)
+fp_t1 = input.time(timestamp("2026-01-05T09:31:00-05:00"), "", inline = "f1", group = fp_GF, tooltip = fp_TIP)
+fp_m2 = input.string("Off", "2", options = ["Off", "Use this candle", "Hide that day"], inline = "f2", group = fp_GF)
+fp_k2 = input.string("FPFVG", "", options = ["FPFVG", "FPDFVG", "FPRFVG", "SB FPFVG"], inline = "f2", group = fp_GF)
+fp_t2 = input.time(timestamp("2026-01-05T09:31:00-05:00"), "", inline = "f2", group = fp_GF, tooltip = fp_TIP)
+fp_m3 = input.string("Off", "3", options = ["Off", "Use this candle", "Hide that day"], inline = "f3", group = fp_GF)
+fp_k3 = input.string("FPFVG", "", options = ["FPFVG", "FPDFVG", "FPRFVG", "SB FPFVG"], inline = "f3", group = fp_GF)
+fp_t3 = input.time(timestamp("2026-01-05T09:31:00-05:00"), "", inline = "f3", group = fp_GF, tooltip = fp_TIP)
+fp_m4 = input.string("Off", "4", options = ["Off", "Use this candle", "Hide that day"], inline = "f4", group = fp_GF)
+fp_k4 = input.string("FPFVG", "", options = ["FPFVG", "FPDFVG", "FPRFVG", "SB FPFVG"], inline = "f4", group = fp_GF)
+fp_t4 = input.time(timestamp("2026-01-05T09:31:00-05:00"), "", inline = "f4", group = fp_GF, tooltip = fp_TIP)
+fp_m5 = input.string("Off", "5", options = ["Off", "Use this candle", "Hide that day"], inline = "f5", group = fp_GF)
+fp_k5 = input.string("FPFVG", "", options = ["FPFVG", "FPDFVG", "FPRFVG", "SB FPFVG"], inline = "f5", group = fp_GF)
+fp_t5 = input.time(timestamp("2026-01-05T09:31:00-05:00"), "", inline = "f5", group = fp_GF, tooltip = fp_TIP)
+
+var fp_fixMode = array.from(fp_m1, fp_m2, fp_m3, fp_m4, fp_m5)
+var fp_fixType = array.from(fp_k1, fp_k2, fp_k3, fp_k4, fp_k5)
+var fp_fixTime = array.from(fp_t1, fp_t2, fp_t3, fp_t4, fp_t5)
+
+fp_dayKey(int t) => year(t, fp_TZ) * 10000 + month(t, fp_TZ) * 100 + dayofmonth(t, fp_TZ)
+
+// The correction for this type on this day: [mode, time] (mode "" when there is none).
+fp_fix(int k, int dk) =>
+    string mode = ""
+    int t = na
+    for i = 0 to 4
+        if fp_fixMode.get(i) != "Off" and fp_fixType.get(i) == fp_TYPES.get(k) and fp_dayKey(fp_fixTime.get(i)) == dk
+            mode := fp_fixMode.get(i)
+            t := fp_fixTime.get(i)
+    [mode, t]
+
+fp_on(int k) => k == 0 ? fp_on0 : k == 1 ? fp_on1 : k == 2 ? fp_on2 : fp_on3
+fp_col(int k) => k == 0 ? fp_col0 : k == 1 ? fp_col1 : k == 2 ? fp_col2 : fp_col3
+
+var fp_boxes  = array.new<box>()
+var fp_lines  = array.new<line>()
+var fp_objDay = array.new<int>()
+var fp_dayList = array.new<int>()
+
+fp_draw(int k, float top, float bot, int dk, bool fixed) =>
+    if fp_on(k)
+        c = fp_col(k)
+        border = color.new(c, 0)
+        txt = fp_TYPES.get(k) + (fp_showDay ? " " + str.format_time(time[1], "EEE", fp_TZ) : "") + (fixed ? " ✎" : "")
+        b = box.new(time[2], top, time, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = c, text = txt, text_color = border, text_size = size.small, text_halign = text.align_right, text_valign = text.align_center)
+        mid = (top + bot) / 2
+        l = fp_showCE ? line.new(time[2], mid, time, mid, xloc = xloc.bar_time, extend = extend.right, color = border, style = line.style_dashed) : na
+        fp_boxes.push(b)
+        fp_lines.push(l)
+        fp_objDay.push(dk)
+        if fp_dayList.size() == 0 or fp_dayList.last() != dk
+            fp_dayList.push(dk)
+        // Keep only the last fp_days days that have drawings.
+        while fp_dayList.size() > fp_days
+            old = fp_dayList.shift()
+            for i = fp_objDay.size() - 1 to 0
+                if fp_objDay.get(i) == old
+                    fp_boxes.get(i).delete()
+                    fp_lines.get(i).delete()
+                    fp_boxes.remove(i)
+                    fp_lines.remove(i)
+                    fp_objDay.remove(i)
+
+// Series computed on every bar
+fp_inWin = not na(time(timeframe.period, fp_win, fp_TZ))
+fp_inSB  = not na(time(timeframe.period, fp_sbWin, fp_TZ))
+fp_avgBody = ta.sma(math.abs(close - open), 20)
+fp_minGap = fp_minTicks * syminfo.mintick
+fp_bull = low > high[2] and low - high[2] >= fp_minGap
+fp_bear = high < low[2] and low[2] - high >= fp_minGap
+fp_disp = math.abs(close[1] - open[1]) >= fp_dispMult * nz(fp_avgBody[2])
+fp_dk = fp_dayKey(time[1])
+fp_sameDay = fp_dayKey(time[2]) == fp_dk
+
+var int fp_curDay = na
+var fp_found = array.new_bool(4, false)
+var int fp_dir = 0     // direction of today's FPFVG: 1 bull, -1 bear
+var int fp_fpBar = na  // bar it formed on
+
+if timeframe.isintraday and bar_index >= 2
+    if na(fp_curDay) or fp_dk != fp_curDay
+        fp_curDay := fp_dk
+        for i = 0 to 3
+            fp_found.set(i, false)
+        fp_dir := 0
+        fp_fpBar := na
+    for k = 0 to 3
+        if not fp_found.get(k)
+            [mode, ft] = fp_fix(k, fp_dk)
+            if mode == "Use this candle"
+                // The chosen middle candle is the previous bar: draw the gap between candles 1 and 3,
+                // or the wicks around it if there's no clean gap.
+                if ft >= time[1] and ft < time
+                    up = close[1] >= open[1]
+                    top = up ? math.max(low, high[2]) : math.max(low[2], high)
+                    bot = up ? math.min(low, high[2]) : math.min(low[2], high)
+                    fp_found.set(k, true)
+                    if k == 0
+                        fp_dir := up ? 1 : -1
+                        fp_fpBar := bar_index
+                    fp_draw(k, top, bot, fp_dk, true)
+            else if mode == ""
+                inW = k == 3 ? fp_inSB[2] : fp_inWin[2]
+                want = k == 2 ? (fp_dir == 1 ? fp_bear : fp_dir == -1 ? fp_bull : false) : fp_bull or fp_bear
+                ok = fp_sameDay and inW and want and (k != 1 or fp_disp) and (k != 2 or bar_index > nz(fp_fpBar, bar_index))
+                if ok
+                    fp_found.set(k, true)
+                    if k == 0
+                        fp_dir := fp_bull ? 1 : -1
+                        fp_fpBar := bar_index
+                    fp_draw(k, fp_bull ? low : low[2], fp_bull ? high[2] : high, fp_dk, false)

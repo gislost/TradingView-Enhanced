@@ -1,0 +1,43 @@
+//@version=6
+// @description New Day and New Week Opening Gaps, extended right with a CE line: NDOG is the gap between the 17:00 close and the next session's open, NWOG the gap between Friday's close and Sunday's open. Keeps the last few of each.
+indicator("TVE NDOG NWOG", "TVE NDOG/NWOG", overlay = true, max_boxes_count = 500, max_lines_count = 500)
+
+// @tve-body  (everything below this line is copied into TVE All-in-One, so names start with og_)
+
+og_G = "NDOG / NWOG"
+og_onD  = input.bool(true, "NDOG", inline = "d", group = og_G)
+og_colD = input.color(color.new(#B388FF, 85), "", inline = "d", group = og_G)
+og_nD   = input.int(5, "keep last", minval = 1, maxval = 100, inline = "d", group = og_G)
+og_onW  = input.bool(true, "NWOG", inline = "w", group = og_G)
+og_colW = input.color(color.new(#FFC857, 80), "", inline = "w", group = og_G)
+og_nW   = input.int(4, "keep last", minval = 1, maxval = 100, inline = "w", group = og_G)
+og_showCE   = input.bool(true, "CE (50%) line", group = og_G)
+og_showDate = input.bool(true, "Date in label", group = og_G)
+
+var og_dBoxes = array.new<box>()
+var og_dLines = array.new<line>()
+var og_wBoxes = array.new<box>()
+var og_wLines = array.new<line>()
+
+og_add(box[] boxes, line[] lines, int keep, color c, string name) =>
+    top = math.max(close[1], open)
+    bot = math.min(close[1], open)
+    if top > bot
+        border = color.new(c, 0)
+        txt = name + (og_showDate ? " " + str.format_time(time_tradingday, "MM/dd", "UTC") : "")
+        boxes.push(box.new(time[1], top, time, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = c, text = txt, text_color = border, text_size = size.small, text_halign = text.align_right, text_valign = text.align_center))
+        mid = (top + bot) / 2
+        lines.push(og_showCE ? line.new(time[1], mid, time, mid, xloc = xloc.bar_time, extend = extend.right, color = border, style = line.style_dashed) : na)
+        while boxes.size() > keep
+            boxes.shift().delete()
+            lines.shift().delete()
+
+// A new trading day (futures: the 18:00 open) or a new week (Sunday's open).
+og_newDay  = ta.change(time("D")) != 0
+og_newWeek = ta.change(time("W")) != 0
+
+if bar_index > 0
+    if og_newWeek and og_onW and (timeframe.isintraday or timeframe.isdaily)
+        og_add(og_wBoxes, og_wLines, og_nW, og_colW, "NWOG")
+    else if og_newDay and og_onD and timeframe.isintraday
+        og_add(og_dBoxes, og_dLines, og_nD, og_colD, "NDOG")

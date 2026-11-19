@@ -4,7 +4,7 @@
 (() => {
   window.__tvPanel?.dispose?.();
 
-  const TABS = [['backgrounds', 'Backgrounds'], ['colors', 'Colors'], ['templates', 'Templates'], ['settings', 'Settings']];
+  const TABS = [['backgrounds', 'Backgrounds'], ['colors', 'Colors'], ['templates', 'Templates'], ['indicators', 'Indicators'], ['settings', 'Settings']];
   let tab = 'backgrounds';
   try { if (TABS.some(([id]) => id === localStorage.tvePanelTab)) tab = localStorage.tvePanelTab; } catch {}
 
@@ -108,7 +108,7 @@
     const tabs = el('div', { className: 'tve-tabs', role: 'tablist' }, ...TABS.map(([id, label]) =>
       el('button', { className: 'tve-tab', role: 'tab', ariaSelected: String(id === tab), textContent: label, onclick: () => { tab = id; render(); } })));
     const body = el('div', { className: 'tve-body' });
-    ({ backgrounds, colors, templates, settings })[tab](body);
+    ({ backgrounds, colors, templates, indicators, settings })[tab](body);
     panel.replaceChildren(
       el('div', { className: 'tve-head' },
         el('div', { className: 'tve-title', textContent: 'TradingView Enhanced' }),
@@ -211,6 +211,41 @@
       el('p', { className: 'tve-note', style: 'margin:0', textContent: 'Your own templates are never changed. Update replaces the [TVE] ones with the latest version.' }),
       log);
     refresh();
+  }
+
+  function indicators(body) {
+    const I = window.__tvIndicators;
+    if (!I?.list.length) return body.append(el('p', { className: 'tve-note', textContent: 'No indicators found. They come from the indicators folder of the GitHub repo and are pulled each time the launcher starts.' }));
+    const log = el('div', { className: 'tve-log' });
+    const list = el('div', { style: 'margin:0 0 10px' });
+    for (const x of I.list) {
+      const copy = el('button', { className: 'tve-link', textContent: 'Copy code', title: 'Copy the Pine code, to paste into the Pine Editor' });
+      copy.onclick = async () => {
+        try { await navigator.clipboard.writeText(x.source); copy.textContent = 'Copied'; } catch { copy.textContent = 'Copy failed'; }
+        setTimeout(() => { copy.textContent = 'Copy code'; }, 1500);
+      };
+      list.append(el('div', { style: 'padding:6px 0;border-bottom:1px solid rgba(128,128,128,.2)' },
+        el('div', { style: 'display:flex;gap:8px;align-items:baseline' },
+          el('b', { textContent: x.title, style: 'flex:1' }), copy),
+        el('div', { className: 'tve-note', style: 'margin:2px 0 0', textContent: x.allInOne ? 'All of the above in one indicator. Each part has its own on/off switch in Settings.' : x.description })));
+    }
+    const btns = el('div', { className: 'tve-btns' });
+    const run = mode => async () => {
+      for (const b of btns.children) b.disabled = true;
+      log.textContent = mode === 'check' ? 'Checking…' : 'Saving…';
+      try {
+        const out = await I.save(I.list, mode);
+        log.textContent = out.map(r => `${r.ok ? '✓' : '✗'} ${r.title}: ${r.text}`).join('\n')
+          + (mode === 'save' && out.some(r => r.ok) ? '\n\nAdd them from Indicators → My scripts. TradingView keeps that list until restart, so restart it to see new ones or updates.' : '');
+      } catch (e) { log.textContent = `Failed: ${e.message}`; }
+      for (const b of btns.children) b.disabled = false;
+    };
+    btns.append(
+      el('button', { className: 'tve-btn primary', textContent: 'Save / update in my TradingView', onclick: run('save') }),
+      el('button', { className: 'tve-btn', textContent: 'Check', onclick: run('check') }));
+    body.append(
+      el('p', { style: 'margin:0 0 6px', textContent: 'Pine indicators from the indicators folder of the GitHub repo, saved as your own private scripts. Only scripts with these names are changed.' }),
+      list, btns, log);
   }
 
   function settings(body) {
