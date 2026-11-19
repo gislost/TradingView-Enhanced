@@ -1,6 +1,6 @@
 //@version=6
-// @description New Day and New Week Opening Gaps, extended right with a CE line: NDOG is the gap between the 17:00 close and the next session's open, NWOG the gap between Friday's close and Sunday's open. Keeps the last few of each.
-indicator("TVE NDOG NWOG", "TVE NDOG/NWOG", overlay = true, max_boxes_count = 500, max_lines_count = 500)
+// @description New Day and New Week Opening Gaps, extended right with a CE line and their names at the right edge: NDOG is the gap between the 17:00 close and the next session's open, NWOG the gap between Friday's close and Sunday's open. Keeps the last few of each.
+indicator("TVE NDOG NWOG", "TVE NDOG/NWOG", overlay = true, max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
 
 // @tve-body  (everything below this line is copied into TVE All-in-One, so names start with og_)
 
@@ -14,23 +14,28 @@ og_nW   = input.int(4, "keep last", minval = 1, maxval = 100, inline = "w", grou
 og_showCE   = input.bool(true, "CE (50%) line", group = og_G)
 og_showDate = input.bool(true, "Date in label", group = og_G)
 
-var og_dBoxes = array.new<box>()
-var og_dLines = array.new<line>()
-var og_wBoxes = array.new<box>()
-var og_wLines = array.new<line>()
+var og_dBoxes  = array.new<box>()
+var og_dLines  = array.new<line>()
+var og_dLabels = array.new<label>()
+var og_wBoxes  = array.new<box>()
+var og_wLines  = array.new<line>()
+var og_wLabels = array.new<label>()
 
-og_add(box[] boxes, line[] lines, int keep, color c, string name) =>
+og_add(box[] boxes, line[] lines, label[] labels, int keep, color c, string name) =>
     top = math.max(close[1], open)
     bot = math.min(close[1], open)
     if top > bot
         border = color.new(c, 0)
         txt = name + (og_showDate ? " " + str.format_time(time_tradingday, "MM/dd", "UTC") : "")
-        boxes.push(box.new(time[1], top, time, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = c, text = txt, text_color = border, text_size = size.small, text_halign = text.align_right, text_valign = text.align_center))
+        boxes.push(box.new(time[1], top, time, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = c))
         mid = (top + bot) / 2
         lines.push(og_showCE ? line.new(time[1], mid, time, mid, xloc = xloc.bar_time, extend = extend.right, color = border, style = line.style_dashed) : na)
+        // The name sits at the right end, next to the price scale (moved along on the last bar below).
+        labels.push(label.new(time, mid, txt, xloc = xloc.bar_time, style = label.style_label_left, color = color.new(c, 100), textcolor = border, size = size.small))
         while boxes.size() > keep
             boxes.shift().delete()
             lines.shift().delete()
+            labels.shift().delete()
 
 // A new trading day (futures: the 18:00 open) or a new week (Sunday's open).
 og_newDay  = ta.change(time("D")) != 0
@@ -38,6 +43,14 @@ og_newWeek = ta.change(time("W")) != 0
 
 if bar_index > 0
     if og_newWeek and og_onW and (timeframe.isintraday or timeframe.isdaily)
-        og_add(og_wBoxes, og_wLines, og_nW, og_colW, "NWOG")
+        og_add(og_wBoxes, og_wLines, og_wLabels, og_nW, og_colW, "NWOG")
     else if og_newDay and og_onD and timeframe.isintraday
-        og_add(og_dBoxes, og_dLines, og_nD, og_colD, "NDOG")
+        og_add(og_dBoxes, og_dLines, og_dLabels, og_nD, og_colD, "NDOG")
+
+// Keep the names just right of the latest candle.
+if barstate.islast
+    og_x = time + 2 * timeframe.in_seconds() * 1000
+    for l in og_dLabels
+        l.set_x(og_x)
+    for l in og_wLabels
+        l.set_x(og_x)
