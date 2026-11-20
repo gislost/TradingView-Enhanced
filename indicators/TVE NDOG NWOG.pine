@@ -48,8 +48,18 @@ if bar_index > 0
         og_add(og_dBoxes, og_dLines, og_dLabels, og_nD, og_colD, "NDOG")
 
 // Keep the names just right of the latest candle.
+// On the latest candle: end the boxes and CE lines there (they still extend right). TradingView hides a drawing
+// whose candles aren't loaded yet, so this keeps them on screen at every zoom.
 if barstate.islast
     og_x = time + 2 * timeframe.in_seconds() * 1000
+    for b in og_dBoxes
+        b.set_right(time)
+    for b in og_wBoxes
+        b.set_right(time)
+    for l in og_dLines
+        l.set_x2(time)
+    for l in og_wLines
+        l.set_x2(time)
     for l in og_dLabels
         l.set_x(og_x)
     for l in og_wLabels

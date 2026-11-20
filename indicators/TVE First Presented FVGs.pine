@@ -11,6 +11,7 @@ fp_win      = input.session("0930-1000", "FPFVG window (NY)", group = fp_G)
 fp_sbWin    = input.session("1000-1100", "Silver Bullet window (NY)", group = fp_G)
 fp_dispMult = input.float(1.5, "Displacement: middle candle body ≥ x average body", minval = 0.5, step = 0.1, group = fp_G, tooltip = "Average of the last 20 candle bodies. Used for FPDFVG.")
 fp_minTicks = input.int(0, "Minimum gap (ticks)", minval = 0, group = fp_G)
+fp_tfIn     = input.timeframe("1", "Find gaps on", group = fp_G, tooltip = "Candle size the gaps are looked for on, whatever the chart's timeframe, so they stay the same when you switch timeframes. A chart with smaller candles uses its own.")
 fp_showCE   = input.bool(true, "CE (50%) line", group = fp_G)
 fp_showDay  = input.bool(true, "Weekday in label", group = fp_G)
 
@@ -63,22 +64,99 @@ fp_fix(int k, int dk) =>
 fp_on(int k) => k == 0 ? fp_on0 : k == 1 ? fp_on1 : k == 2 ? fp_on2 : fp_on3
 fp_col(int k) => k == 0 ? fp_col0 : k == 1 ? fp_col1 : k == 2 ? fp_col2 : fp_col3
 
+// Finds each type's gap for the day. Runs on fp_tf candles (see below), so the result is the same on every
+// chart timeframe. Returns, per type: top, bottom, time of the 1st, 2nd and 3rd candle, and whether it was fixed.
+fp_scan() =>
+    var tops = array.new_float(4, na)
+    var bots = array.new_float(4, na)
+    var tLs  = array.new_int(4, na)
+    var tMs  = array.new_int(4, na)
+    var tRs  = array.new_int(4, na)
+    var fixs = array.new_bool(4, false)
+    var found = array.new_bool(4, false)
+    var int curDay = na
+    var int dir = 0     // direction of the day's FPFVG: 1 bull, -1 bear
+    var int fpBar = na  // bar it formed on
+    inWin = not na(time(timeframe.period, fp_win, fp_TZ))
+    inSB  = not na(time(timeframe.period, fp_sbWin, fp_TZ))
+    avgBody = ta.sma(math.abs(close - open), 20)
+    minGap = fp_minTicks * syminfo.mintick
+    bull = low > high[2] and low - high[2] >= minGap
+    bear = high < low[2] and low[2] - high >= minGap
+    disp = math.abs(close[1] - open[1]) >= fp_dispMult * nz(avgBody[2])
+    dk = fp_dayKey(time[1])
+    sameDay = fp_dayKey(time[2]) == dk
+    if bar_index >= 2
+        if na(curDay) or dk != curDay
+            curDay := dk
+            for i = 0 to 3
+                found.set(i, false)
+            dir := 0
+            fpBar := na
+        for k = 0 to 3
+            if not found.get(k)
+                [mode, ft] = fp_fix(k, dk)
+                float top = na
+                float bot = na
+                bool fixed = false
+                if mode == "Use this candle"
+                    // The chosen middle candle is the previous bar: take the gap between candles 1 and 3,
+                    // or the wicks around it if there's no clean gap.
+                    if ft >= time[1] and ft < time
+                        up = close[1] >= open[1]
+                        top := up ? math.max(low, high[2]) : math.max(low[2], high)
+                        bot := up ? math.min(low, high[2]) : math.min(low[2], high)
+                        fixed := true
+                        if k == 0
+                            dir := up ? 1 : -1
+                            fpBar := bar_index
+                else if mode == ""
+                    inW = k == 3 ? inSB[2] : inWin[2]
+                    want = k == 2 ? (dir == 1 ? bear : dir == -1 ? bull : false) : bull or bear
+                    if sameDay and inW and want and (k != 1 or disp) and (k != 2 or bar_index > nz(fpBar, bar_index))
+                        top := bull ? low : low[2]
+                        bot := bull ? high[2] : high
+                        if k == 0
+                            dir := bull ? 1 : -1
+                            fpBar := bar_index
+                if not na(top)
+                    found.set(k, true)
+                    tops.set(k, top)
+                    bots.set(k, bot)
+                    tLs.set(k, time[2])
+                    tMs.set(k, time[1])
+                    tRs.set(k, time)
+                    fixs.set(k, fixed)
+    [tops.get(0), bots.get(0), tLs.get(0), tMs.get(0), tRs.get(0), fixs.get(0),
+     tops.get(1), bots.get(1), tLs.get(1), tMs.get(1), tRs.get(1), fixs.get(1),
+     tops.get(2), bots.get(2), tLs.get(2), tMs.get(2), tRs.get(2), fixs.get(2),
+     tops.get(3), bots.get(3), tLs.get(3), tMs.get(3), tRs.get(3), fixs.get(3)]
+
+// Gaps are found on fp_tfIn candles (1 minute by default) on any intraday chart, so switching timeframes doesn't
+// lose them. On a chart with smaller candles than that, the chart's own candles are used.
+fp_tf = not timeframe.isintraday or timeframe.in_seconds() < timeframe.in_seconds(fp_tfIn) ? timeframe.period : fp_tfIn
+[fp_top0, fp_bot0, fp_l0, fp_m0, fp_r0, fp_f0, fp_top1, fp_bot1, fp_l1, fp_m1x, fp_r1, fp_f1, fp_top2, fp_bot2, fp_l2, fp_m2x, fp_r2, fp_f2, fp_top3, fp_bot3, fp_l3, fp_m3x, fp_r3, fp_f3] = request.security(syminfo.tickerid, fp_tf, fp_scan(), lookahead = barmerge.lookahead_off)
+
 var fp_boxes  = array.new<box>()
 var fp_lines  = array.new<line>()
 var fp_labels = array.new<label>()
 var fp_objDay = array.new<int>()
 var fp_dayList = array.new<int>()
+var fp_lastR  = array.new_int(4, na)
 
-fp_draw(int k, float top, float bot, int dk, bool fixed) =>
-    if fp_on(k)
+fp_draw(int k, float top, float bot, int tL, int tM, int tR, bool fixed) =>
+    // Draw each gap once, when it first shows up (its 3rd candle's time changes).
+    if timeframe.isintraday and fp_on(k) and not na(tR) and (na(fp_lastR.get(k)) or tR != fp_lastR.get(k))
+        fp_lastR.set(k, tR)
+        dk = fp_dayKey(tM)
         c = fp_col(k)
         border = color.new(c, 0)
-        txt = fp_TYPES.get(k) + (fp_showDay ? " " + str.format_time(time[1], "EEE", fp_TZ) : "") + (fixed ? " ✎" : "")
-        b = box.new(time[2], top, time, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = c)
+        txt = fp_TYPES.get(k) + (fp_showDay ? " " + str.format_time(tM, "EEE", fp_TZ) : "") + (fixed ? " ✎" : "")
+        b = box.new(tL, top, tR, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = c)
         mid = (top + bot) / 2
-        l = fp_showCE ? line.new(time[2], mid, time, mid, xloc = xloc.bar_time, extend = extend.right, color = border, style = line.style_dashed) : na
+        l = fp_showCE ? line.new(tL, mid, tR, mid, xloc = xloc.bar_time, extend = extend.right, color = border, style = line.style_dashed) : na
         // The name sits at the right end, next to the price scale (moved along on the last bar below).
-        fp_labels.push(label.new(time, mid, txt, xloc = xloc.bar_time, style = label.style_label_left, color = color.new(c, 100), textcolor = border, size = size.small))
+        fp_labels.push(label.new(tR, mid, txt, xloc = xloc.bar_time, style = label.style_label_left, color = color.new(c, 100), textcolor = border, size = size.small))
         fp_boxes.push(b)
         fp_lines.push(l)
         fp_objDay.push(dk)
@@ -97,57 +175,20 @@ fp_draw(int k, float top, float bot, int dk, bool fixed) =>
                     fp_labels.remove(i)
                     fp_objDay.remove(i)
 
-// Series computed on every bar
-fp_inWin = not na(time(timeframe.period, fp_win, fp_TZ))
-fp_inSB  = not na(time(timeframe.period, fp_sbWin, fp_TZ))
-fp_avgBody = ta.sma(math.abs(close - open), 20)
-fp_minGap = fp_minTicks * syminfo.mintick
-fp_bull = low > high[2] and low - high[2] >= fp_minGap
-fp_bear = high < low[2] and low[2] - high >= fp_minGap
-fp_disp = math.abs(close[1] - open[1]) >= fp_dispMult * nz(fp_avgBody[2])
-fp_dk = fp_dayKey(time[1])
-fp_sameDay = fp_dayKey(time[2]) == fp_dk
+fp_draw(0, fp_top0, fp_bot0, fp_l0, fp_m0, fp_r0, fp_f0)
+fp_draw(1, fp_top1, fp_bot1, fp_l1, fp_m1x, fp_r1, fp_f1)
+fp_draw(2, fp_top2, fp_bot2, fp_l2, fp_m2x, fp_r2, fp_f2)
+fp_draw(3, fp_top3, fp_bot3, fp_l3, fp_m3x, fp_r3, fp_f3)
 
-var int fp_curDay = na
-var fp_found = array.new_bool(4, false)
-var int fp_dir = 0     // direction of today's FPFVG: 1 bull, -1 bear
-var int fp_fpBar = na  // bar it formed on
-
-if timeframe.isintraday and bar_index >= 2
-    if na(fp_curDay) or fp_dk != fp_curDay
-        fp_curDay := fp_dk
-        for i = 0 to 3
-            fp_found.set(i, false)
-        fp_dir := 0
-        fp_fpBar := na
-    for k = 0 to 3
-        if not fp_found.get(k)
-            [mode, ft] = fp_fix(k, fp_dk)
-            if mode == "Use this candle"
-                // The chosen middle candle is the previous bar: draw the gap between candles 1 and 3,
-                // or the wicks around it if there's no clean gap.
-                if ft >= time[1] and ft < time
-                    up = close[1] >= open[1]
-                    top = up ? math.max(low, high[2]) : math.max(low[2], high)
-                    bot = up ? math.min(low, high[2]) : math.min(low[2], high)
-                    fp_found.set(k, true)
-                    if k == 0
-                        fp_dir := up ? 1 : -1
-                        fp_fpBar := bar_index
-                    fp_draw(k, top, bot, fp_dk, true)
-            else if mode == ""
-                inW = k == 3 ? fp_inSB[2] : fp_inWin[2]
-                want = k == 2 ? (fp_dir == 1 ? fp_bear : fp_dir == -1 ? fp_bull : false) : fp_bull or fp_bear
-                ok = fp_sameDay and inW and want and (k != 1 or fp_disp) and (k != 2 or bar_index > nz(fp_fpBar, bar_index))
-                if ok
-                    fp_found.set(k, true)
-                    if k == 0
-                        fp_dir := fp_bull ? 1 : -1
-                        fp_fpBar := bar_index
-                    fp_draw(k, fp_bull ? low : low[2], fp_bull ? high[2] : high, fp_dk, false)
-
-// Keep the names just right of the latest candle.
+// On the latest candle: end every box and CE line there (they still extend right) and put the names just past it.
+// TradingView hides a drawing whose candles aren't loaded yet, which on small timeframes is anything older than a
+// few hours until you scroll back; ending them on the latest candle keeps them on screen at every zoom.
 if barstate.islast
     fp_x = time + 2 * timeframe.in_seconds() * 1000
+    for b in fp_boxes
+        b.set_right(time)
+    for l in fp_lines
+        if not na(l)
+            l.set_x2(time)
     for l in fp_labels
         l.set_x(fp_x)
