@@ -11,11 +11,21 @@
 
   // TradingView paints an opaque background with a full-canvas fillRect. On pane canvases
   // we turn that one call into a clear so the scene underneath shows through.
+  // Only opaque fills (a solid color or the gradient background) count: an indicator box can also cover the
+  // whole pane (extended right and zoomed in on its prices), and clearing for its see-through fill erased it
+  // and everything drawn before it, so gaps vanished until hovered.
   const proto = CanvasRenderingContext2D.prototype;
   const origFillRect = (window.__tvSkinOrigFillRect ||= proto.fillRect);
+  const opaqueFill = ctx => {
+    if (ctx.globalAlpha < 1) return false;
+    const f = ctx.fillStyle;
+    if (typeof f !== 'string') return true;
+    const m = /^rgba\([^)]*,\s*([\d.]+)\s*\)$/.exec(f);
+    return !m || parseFloat(m[1]) >= 1;
+  };
   proto.fillRect = function (x, y, w, h) {
     const c = this.canvas;
-    if (c && c.__tvSkinClear && current !== 'off') {
+    if (c && c.__tvSkinClear && current !== 'off' && opaqueFill(this)) {
       const t = this.getTransform();
       const X = x * t.a + t.e, Y = y * t.d + t.f, W = w * t.a, H = h * t.d;
       if (X <= 1 && Y <= 1 && X + W >= c.width - 1 && Y + H >= c.height - 1) {
