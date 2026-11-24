@@ -1,4 +1,5 @@
-// Checks for a newer version of these files, downloads it if there is one, then starts launch.mjs.
+// Checks for a newer version of these files, downloads it if there is one, then starts launch.mjs
+// (unless run with --update-only).
 // Where to look is set in update.json: { "source": "https://raw.githubusercontent.com/<you>/<repo>/main/" }.
 // No source, no internet, or anything odd in the download: it just launches what's already here.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -36,4 +37,5 @@ async function update() {
 }
 
 try { await update(); } catch (e) { console.log(`Update check skipped: ${e.message}`); }
-await import(pathToFileURL(join(here, 'launch.mjs')).href);
+// --update-only: just update (used by "TVE Browser Extension.cmd").
+if (!process.argv.includes('--update-only')) await import(pathToFileURL(join(here, 'launch.mjs')).href);

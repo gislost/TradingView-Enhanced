@@ -1,6 +1,6 @@
 # TradingView Enhanced
 
-Chart skins, a chart color picker, readable drawing text and ICT drawing templates for TradingView Desktop.
+Chart skins, a chart color picker, readable drawing text and ICT drawing templates for TradingView Desktop, or for tradingview.com in Chrome, Edge or Brave.
 
 ## Install
 
@@ -13,6 +13,19 @@ The first run also adds a **TradingView Enhanced** shortcut to your desktop and 
 It updates itself: each time you start TradingView this way, it downloads the newest version if there is one.
 
 The palette button, backgrounds and hotkeys only work when TradingView was started this way. If you open TradingView normally, only the chart color themes stay. While it's running, a minimized "TradingView skins" window stays open. That's the launcher, and it closes by itself when TradingView closes. If something doesn't start, `tve-launch.log` and `tve-launcher.log` in the same folder say what happened.
+
+### In a browser (Chrome, Edge, Brave)
+
+TradingView Enhanced also works on tradingview.com as a browser extension, with the same panel, skins, colors, templates, indicators and Ask Claude.
+
+1. Do steps 1 and 2 above (Node.js, and the unzipped folder).
+2. Double-click **TVE Browser Extension.cmd**. It updates TradingView Enhanced and builds the extension in the `extension` folder. It doesn't open or change your browser.
+3. In your browser, open `chrome://extensions` (Edge: `edge://extensions`), turn on **Developer mode**, click **Load unpacked** and pick that `extension` folder.
+4. Reload your TradingView chart tab. The palette button shows in the top toolbar.
+
+Updating: run **TVE Browser Extension.cmd** again (starting TradingView Desktop with the launcher also rebuilds it), then click the reload button on **TradingView Enhanced** in the extensions page and reload the chart tab.
+
+The extension only runs on `tradingview.com/chart` pages. Its only other permission is `api.anthropic.com`, for Ask Claude. It can't read other sites, your tabs, history or cookies, and it can't place, change or cancel orders. For Ask Claude, the browser keeps its own copy of your API key in the extension's storage (paste it once in the Ask Claude popup), never in the TradingView page.
 
 ## Use
 
@@ -44,6 +57,7 @@ Your own version of TradingView's AI range feature, using your Claude API key. S
 Claude gets the bars in New York time plus ICT reference levels computed from the loaded bars (previous day, Asia, London and NY AM highs and lows, midnight/08:30/09:30 opens), and can search the web for news. Answers use ICT terms: killzones, liquidity sweeps, MSS/BOS, FVGs, order blocks, premium/discount, OTE, Power of 3.
 
 - **Key**: the first time, paste your key into the popup. It's saved in `claude-key.txt` in this folder (or set `ANTHROPIC_API_KEY`). The key stays in the launcher process and is never put into the TradingView page. `.gitignore` keeps it out of git.
+- In the browser extension, the key is saved in the extension's storage instead (see [In a browser](#in-a-browser-chrome-edge-brave)).
 - **Read-only**: Claude's only tool is web search. It cannot place, change or cancel orders, touch your broker, or draw on or change the chart. Its answers are shown as text and are never run.
 - **Cost**: each question is billed to your API account. Model: `claude-opus-5-5` (set `TVE_CLAUDE_MODEL` to use another).
 - The first launch after updating installs the Anthropic SDK (`npm install`) automatically.

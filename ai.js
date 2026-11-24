@@ -1,6 +1,7 @@
 // Injected into the TradingView chart page. "Ask Claude" about a selected range of bars, with ICT framing.
-// This is only the UI: the API key and the Claude API calls live in claude.mjs (Node), reached through the
-// window.__tvClaude binding that launch.mjs adds. Replies come back through window.__tvAI.receive().
+// This is only the UI: the API key and the Claude API calls live outside the page (claude.mjs for the launcher,
+// the extension's background worker in a browser), reached through window.__tvClaude. Replies come back through
+// window.__tvAI.receive().
 //
 // Read-only: this script reads bars and the selection from the chart and shows text. It never calls any
 // order, trading or broker API, and Claude's answers are rendered as escaped text, never run.
@@ -337,7 +338,7 @@
 
     if (!bridge()) {
       setBusy(true);
-      body.append(el('div', 'tvai-err', 'Ask Claude is not connected. Close TradingView fully and start it again with the TradingView Enhanced launcher.'));
+      body.append(el('div', 'tvai-err', 'Ask Claude is not connected. In TradingView Desktop, close it fully and start it again with the TradingView Enhanced launcher. In a browser, reload this page; if that doesn’t help, reload the TradingView Enhanced extension.'));
       return;
     }
     ctx = buildContext(range);
@@ -356,11 +357,11 @@
       if (!panel) return;
       setBusy(false);
       if (msg.type === 'status-reply' && msg.hasKey) showActions();
-      else { setBusy(true); showKeyForm(body, () => { setBusy(false); showActions(); }); }
+      else { setBusy(true); showKeyForm(body, () => { setBusy(false); showActions(); }, msg.keyNote); }
     });
   }
 
-  function showKeyForm(body, done) {
+  function showKeyForm(body, done, note) {
     body.textContent = '';
     const box = el('div', 'tvai-key');
     box.append(el('div', '', 'Paste your Claude API key (from console.anthropic.com).'));
@@ -368,7 +369,7 @@
     inp.type = 'password'; inp.placeholder = 'sk-ant-…'; inp.autocomplete = 'off';
     row.append(inp, save);
     const err = el('div', 'tvai-err');
-    box.append(row, err, el('small', '', 'Saved only on this PC (claude-key.txt next to the launcher). The key stays in the launcher process and is never put into the TradingView page.'));
+    box.append(row, err, el('small', '', note || 'The key is kept outside the TradingView page.'));
     body.append(box);
     inp.focus();
     const go = () => {

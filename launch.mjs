@@ -1,42 +1,28 @@
 // Starts TradingView Desktop with a local debug port and injects skin.js, colors.js, panel.js and ai.js into every chart tab.
-// Also pulls the Pine indicators in the repo's indicators/ folder for the panel's Indicators tab.
+// Also pulls the Pine indicators in the repo's indicators/ folder for the panel's Indicators tab,
+// and rebuilds the browser extension in extension/ (see extension.mjs).
 // Exits on its own when TradingView closes.
 import { readFileSync } from 'node:fs';
 import { execSync, spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TEMPLATES, pageInstall } from './templates.mjs';
-import { pull as pullIndicators, load as loadIndicators, pageSave as saveIndicators } from './indicators.mjs';
+import { pull as pullIndicators, load as loadIndicators } from './indicators.mjs';
+import { chartThemes, pageData, buildExtension } from './extension.mjs';
 
 const PORT = 9222;
 const BASE = `http://127.0.0.1:${PORT}`;
 const here = dirname(fileURLToPath(import.meta.url));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// chartthemes.com ships its theme list as JSON inside its JS bundle. Fetched fresh each launch;
-// if the site changes or is down, the picker still has the built-in presets.
-async function chartThemes() {
-  try {
-    const html = await (await fetch('https://chartthemes.com/')).text();
-    const src = html.match(/src="(\/static\/js\/main\.[^"]+\.js)"/)[1];
-    const js = await (await fetch(`https://chartthemes.com${src}`)).text();
-    const raw = js.match(/JSON\.parse\('(\[\{"created_at".*?\])'\)/)[1];
-    return JSON.parse(raw.replace(/\\'/g, "'")).filter(t => !t.is_hidden);
-  } catch {
-    return [];
-  }
-}
-
 const themes = await chartThemes();
 // Pine indicators from the repo's indicators/ folder (see indicators.mjs).
 console.log('Indicators:', await pullIndicators());
 const indicators = loadIndicators();
 const version = JSON.parse(readFileSync(join(here, 'version.json'), 'utf8')).version;
+// Keep the browser extension (extension/) in step with this version too.
+try { buildExtension({ themes, indicators, version }); } catch (e) { console.log('Browser extension not rebuilt:', e.message); }
 const skin = [
-  `window.__tvChartThemes = ${JSON.stringify(themes)};`,
-  `window.__tvVersion = ${JSON.stringify(version)};`,
-  `window.__tvTemplates = { list: ${JSON.stringify(TEMPLATES)}, install: ${pageInstall} };`,
-  `window.__tvIndicators = { list: ${JSON.stringify(indicators)}, save: ${saveIndicators} };`,
+  pageData({ themes, indicators, version }),
   readFileSync(join(here, 'skin.js'), 'utf8'),
   readFileSync(join(here, 'colors.js'), 'utf8'),
   readFileSync(join(here, 'panel.js'), 'utf8'),

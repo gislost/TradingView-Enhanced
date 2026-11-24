@@ -1,5 +1,5 @@
 {
-  "version": 23,
+  "version": 24,
   "files": [
     "launch.mjs",
     "update.mjs",
@@ -13,6 +13,13 @@
     "ai.js",
     "claude.mjs",
     "package.json",
-    "indicators.mjs"
+    "indicators.mjs",
+    "claude-core.js",
+    "extension.mjs",
+    "ext-page.js",
+    "ext-bridge.js",
+    "ext-background.js",
+    "ext-anthropic.js",
+    "TVE Browser Extension.cmd"
   ]
 }
