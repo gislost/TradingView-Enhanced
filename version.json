@@ -1,5 +1,5 @@
 {
-  "version": 18,
+  "version": 19,
   "files": [
     "launch.mjs",
     "update.mjs",
@@ -11,6 +11,7 @@
     "panel.js",
     "setup.mjs",
     "ai.js",
+    "promo.js",
     "claude.mjs",
     "package.json",
     "indicators.mjs"

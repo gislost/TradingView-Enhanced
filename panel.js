@@ -292,6 +292,9 @@
       el('div', { className: 'tve-h', textContent: 'Drawings' }),
       c ? sw('Keep drawing text readable', c.autoFix(), on => c.setAutoFix(on)) : null,
       el('p', { className: 'tve-note', style: 'margin:0', textContent: 'Text that’s hard to read on the current background is made lighter or darker, keeping its color. Your original colors come back on backgrounds they read well on.' }),
+      el('div', { className: 'tve-h', textContent: 'Popups' }),
+      window.__tvPromo ? sw('Close upgrade and sale popups', window.__tvPromo.enabled(), on => window.__tvPromo.setEnabled(on)) : null,
+      el('p', { className: 'tve-note', style: 'margin:0', textContent: 'TradingView’s “upgrade your plan” and sale popups (some have no close button) are closed as soon as they show.' }),
       el('div', { className: 'tve-h', textContent: 'Hotkeys' }), keys, keyNote,
       el('div', { className: 'tve-h', textContent: 'Updates' }),
       el('p', { className: 'tve-note', style: 'margin:0', textContent: `Version ${window.__tvVersion ?? '?'}. Updates install by themselves when you start TradingView with the TradingView Enhanced shortcut.` }));
