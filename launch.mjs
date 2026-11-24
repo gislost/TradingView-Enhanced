@@ -1,4 +1,4 @@
-// Starts TradingView Desktop with a local debug port and injects skin.js, colors.js, panel.js, ai.js and promo.js into every chart tab.
+// Starts TradingView Desktop with a local debug port and injects skin.js, colors.js, panel.js and ai.js into every chart tab.
 // Also pulls the Pine indicators in the repo's indicators/ folder for the panel's Indicators tab.
 // Exits on its own when TradingView closes.
 import { readFileSync } from 'node:fs';
@@ -41,7 +41,6 @@ const skin = [
   readFileSync(join(here, 'colors.js'), 'utf8'),
   readFileSync(join(here, 'panel.js'), 'utf8'),
   readFileSync(join(here, 'ai.js'), 'utf8'),
-  readFileSync(join(here, 'promo.js'), 'utf8'),
 ].join('\n');
 
 // "Ask Claude" bridge (claude.mjs). Needs the Anthropic SDK; installed on first run. If that fails,
