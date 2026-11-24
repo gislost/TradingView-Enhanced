@@ -57,6 +57,11 @@
     else el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
     setTimeout(() => {
       if (shown(el)) el.style.setProperty('display', 'none', 'important');
+      // The upgrade dialog also dims and locks each chart with a see-through "screen" layer; remove that too,
+      // or nothing on the chart can be clicked.
+      document.querySelectorAll('.chart-widget > [class*="screen-"][class*="fade-"]').forEach(sc => {
+        if (shown(sc)) sc.style.setProperty('display', 'none', 'important');
+      });
       toast('Closed a TradingView upgrade popup');
     }, 400);
   }
