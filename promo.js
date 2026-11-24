@@ -33,7 +33,7 @@
     const set = new Set();
     const root = overlayRoot();
     if (root) for (const c of root.children) set.add(c);
-    document.querySelectorAll('[role="dialog"], [class*="dialog"], [class*="modal"], [class*="popup"]').forEach(e => set.add(e));
+    document.querySelectorAll('[data-dialog-name="gopro"], [role="dialog"], [class*="dialog"], [class*="modal"], [class*="popup"]').forEach(e => set.add(e));
     return set;
   }
 
@@ -62,7 +62,8 @@
     if (!on) return;
     for (const c of candidates()) {
       if (handled.has(c) || c.offsetParent === null || c.closest('[class*="tve"]') || c.matches(PROTECTED) || c.querySelector(PROTECTED)) continue;
-      if (!isPromo(c.innerText || '')) continue;
+      // "gopro" is TradingView's own name for its upgrade dialog (the Black Friday one is one of them).
+      if (!c.matches('[data-dialog-name="gopro"]') && !c.querySelector('[data-dialog-name="gopro"]') && !isPromo(c.innerText || '')) continue;
       const el = outermost(c);
       if (!handled.has(el)) close(el);
     }
