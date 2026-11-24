@@ -45,6 +45,9 @@
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 1800);
   }
 
+  // offsetParent is null for position:fixed popups, so check for a rendered box instead.
+  const shown = el => el.isConnected && el.getClientRects().length > 0;
+
   const handled = new WeakSet();
   function close(el) {
     handled.add(el);
@@ -53,7 +56,7 @@
     if (x) x.click();
     else el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true }));
     setTimeout(() => {
-      if (el.isConnected && el.offsetParent !== null) el.style.setProperty('display', 'none', 'important');
+      if (shown(el)) el.style.setProperty('display', 'none', 'important');
       toast('Closed a TradingView upgrade popup');
     }, 400);
   }
@@ -61,7 +64,7 @@
   function scan() {
     if (!on) return;
     for (const c of candidates()) {
-      if (handled.has(c) || c.offsetParent === null || c.closest('[class*="tve"]') || c.matches(PROTECTED) || c.querySelector(PROTECTED)) continue;
+      if (handled.has(c) || !shown(c) || c.closest('[class*="tve"]') || c.matches(PROTECTED) || c.querySelector(PROTECTED)) continue;
       // "gopro" is TradingView's own name for its upgrade dialog (the Black Friday one is one of them).
       if (!c.matches('[data-dialog-name="gopro"]') && !c.querySelector('[data-dialog-name="gopro"]') && !isPromo(c.innerText || '')) continue;
       const el = outermost(c);
