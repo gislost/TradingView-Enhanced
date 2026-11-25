@@ -6,6 +6,7 @@ indicator("TVE First Presented FVGs", "TVE FPFVG", overlay = true, max_boxes_cou
 
 fp_TZ = "America/New_York"
 fp_G = "First presented FVGs"
+fp_all      = input.bool(true, "Show first presented FVGs", group = fp_G, tooltip = "Untick to turn all of them off. The switches below turn each type on or off.")
 fp_days     = input.int(5, "Days to show", minval = 1, maxval = 60, group = fp_G)
 fp_win      = input.session("0930-1000", "FPFVG window (NY)", group = fp_G)
 fp_sbWin    = input.session("1000-1100", "Silver Bullet window (NY)", group = fp_G)
@@ -61,7 +62,7 @@ fp_fix(int k, int dk) =>
             t := fp_fixTime.get(i)
     [mode, t]
 
-fp_on(int k) => k == 0 ? fp_on0 : k == 1 ? fp_on1 : k == 2 ? fp_on2 : fp_on3
+fp_on(int k) => fp_all and (k == 0 ? fp_on0 : k == 1 ? fp_on1 : k == 2 ? fp_on2 : fp_on3)
 fp_col(int k) => k == 0 ? fp_col0 : k == 1 ? fp_col1 : k == 2 ? fp_col2 : fp_col3
 
 // Finds each type's gap for the day. Runs on fp_tf candles (see below), so the result is the same on every
