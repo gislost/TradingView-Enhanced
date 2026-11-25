@@ -1,5 +1,5 @@
 //@version=6
-// @description New Day and New Week Opening Gaps, extended right with a CE line and their names at the right edge: NDOG is the gap between the 17:00 close and the next session's open, NWOG the gap between Friday's close and Sunday's open. Keeps the last few of each.
+// @description New Day and New Week Opening Gaps, extended right with a CE line and their names at the right edge: NDOG is the gap between the 17:00 close and the next session's open, NWOG the gap between Friday's close and Sunday's open. ORG (Opening Range Gap) is the gap between the previous regular-session close (16:15 New York for index futures) and the 09:30 open, with optional quadrant or octant grade lines. Keeps the last few of each.
 indicator("TVE NDOG NWOG", "TVE NDOG/NWOG", overlay = true, max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
 
 // @tve-body  (everything below this line is copied into TVE All-in-One, so names start with og_)
@@ -14,12 +14,23 @@ og_nW   = input.int(4, "keep last", minval = 1, maxval = 100, inline = "w", grou
 og_showCE   = input.bool(true, "CE (50%) line", group = og_G)
 og_showDate = input.bool(true, "Date in label", group = og_G)
 
+og_GO = "ORG (Opening Range Gap)"
+og_onO   = input.bool(true, "ORG", inline = "o", group = og_GO, tooltip = "Untick to turn all ORGs off.")
+og_colO  = input.color(color.new(#4FC3F7, 85), "", inline = "o", group = og_GO)
+og_nO    = input.int(3, "keep last (days)", minval = 1, maxval = 50, inline = "o", group = og_GO)
+og_grade = input.string("Quadrants", "Grade lines", options = ["None", "Quadrants", "Octants"], group = og_GO, tooltip = "Quadrants: 25 / 50 / 75%. Octants: every 12.5%. The 50% (CE) line is dashed. None shows only the box (plus the CE line if \"CE (50%) line\" is on).")
+og_sessO = input.session("0930-1615", "Regular session (New York)", group = og_GO, tooltip = "The gap runs from the close of the last candle before the session end (16:15 for index futures, use 0930-1600 for stocks) to the open of the first candle at the session start. Exact on 1-15 minute charts.")
+
 var og_dBoxes  = array.new<box>()
 var og_dLines  = array.new<line>()
 var og_dLabels = array.new<label>()
 var og_wBoxes  = array.new<box>()
 var og_wLines  = array.new<line>()
 var og_wLabels = array.new<label>()
+var og_oBoxes  = array.new<box>()
+var og_oGrades = array.new<line>()
+var og_oCounts = array.new<int>()
+var og_oLabels = array.new<label>()
 
 og_add(box[] boxes, line[] lines, label[] labels, int keep, color c, string name) =>
     top = math.max(close[1], open)
@@ -36,6 +47,42 @@ og_add(box[] boxes, line[] lines, label[] labels, int keep, color c, string name
             boxes.shift().delete()
             lines.shift().delete()
             labels.shift().delete()
+
+// ORG: box from the last regular-session close to the next regular-session open, with grade lines inside.
+og_addORG(float prevClose, int prevT) =>
+    top = math.max(prevClose, open)
+    bot = math.min(prevClose, open)
+    if top > bot
+        border = color.new(og_colO, 0)
+        txt = "ORG" + (og_showDate ? " " + str.format_time(time_tradingday, "MM/dd", "UTC") : "")
+        og_oBoxes.push(box.new(prevT, top, time, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = og_colO))
+        n = og_grade == "Octants" ? 8 : og_grade == "Quadrants" ? 4 : og_showCE ? 2 : 0
+        cnt = 0
+        k = 1
+        while k < n
+            lvl = bot + (top - bot) * k / n
+            isCE = k * 2 == n
+            og_oGrades.push(line.new(prevT, lvl, time, lvl, xloc = xloc.bar_time, extend = extend.right, color = color.new(og_colO, isCE ? 0 : 40), style = isCE ? line.style_dashed : line.style_dotted))
+            cnt += 1
+            k += 1
+        og_oCounts.push(cnt)
+        og_oLabels.push(label.new(time, (top + bot) / 2, txt, xloc = xloc.bar_time, style = label.style_label_left, color = color.new(og_colO, 100), textcolor = border, size = size.small))
+        while og_oBoxes.size() > og_nO
+            og_oBoxes.shift().delete()
+            og_oLabels.shift().delete()
+            c = og_oCounts.shift()
+            while c > 0
+                og_oGrades.shift().delete()
+                c -= 1
+
+og_inRTH = not na(time(timeframe.period, og_sessO, "America/New_York"))
+var float og_rthClose  = na
+var int   og_rthCloseT = na
+if og_inRTH and not og_inRTH[1] and og_onO and timeframe.isintraday and not na(og_rthClose)
+    og_addORG(og_rthClose, og_rthCloseT)
+if og_inRTH
+    og_rthClose  := close
+    og_rthCloseT := time
 
 // A new trading day (futures: the 18:00 open) or a new week (Sunday's open).
 og_newDay  = ta.change(time("D")) != 0
@@ -63,4 +110,10 @@ if barstate.islast
     for l in og_dLabels
         l.set_x(og_x)
     for l in og_wLabels
+        l.set_x(og_x)
+    for b in og_oBoxes
+        b.set_right(time)
+    for l in og_oGrades
+        l.set_x2(time)
+    for l in og_oLabels
         l.set_x(og_x)
