@@ -1,0 +1,65 @@
+//@version=6
+// @description ORG (Opening Range Gap): the gap between the previous regular-session close (16:15 New York for index futures) and the 09:30 open, extended right with optional quadrant or octant grade lines and its name at the right edge. Keeps the last few days.
+indicator("TVE ORG", "TVE ORG", overlay = true, max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
+
+// @tve-body  (everything below this line is copied into TVE All-in-One, so names start with org_)
+
+org_G = "ORG (Opening Range Gap)"
+org_on    = input.bool(true, "ORG", inline = "o", group = org_G, tooltip = "Untick to turn all ORGs off.")
+org_col   = input.color(color.new(#4FC3F7, 85), "", inline = "o", group = org_G)
+org_keep  = input.int(3, "keep last (days)", minval = 1, maxval = 50, inline = "o", group = org_G)
+org_grade = input.string("Quadrants", "Grade lines", options = ["None", "Quadrants", "Octants"], group = org_G, tooltip = "Quadrants: 25 / 50 / 75%. Octants: every 12.5%. The 50% (CE) line is dashed. None shows only the box.")
+org_sess  = input.session("0930-1615", "Regular session (New York)", group = org_G, tooltip = "The gap runs from the close of the last candle before the session end (16:15 for index futures, use 0930-1600 for stocks) to the open of the first candle at the session start. Exact on 1-15 minute charts.")
+org_showDate = input.bool(true, "Date in label", group = org_G)
+
+var org_boxes  = array.new<box>()
+var org_lines  = array.new<line>()
+var org_counts = array.new<int>()
+var org_labels = array.new<label>()
+
+// Box from the last regular-session close to the next regular-session open, with grade lines inside.
+org_add(float prevClose, int prevT) =>
+    top = math.max(prevClose, open)
+    bot = math.min(prevClose, open)
+    if top > bot
+        border = color.new(org_col, 0)
+        txt = "ORG" + (org_showDate ? " " + str.format_time(time_tradingday, "MM/dd", "UTC") : "")
+        org_boxes.push(box.new(prevT, top, time, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = org_col))
+        n = org_grade == "Octants" ? 8 : org_grade == "Quadrants" ? 4 : 0
+        cnt = 0
+        k = 1
+        while k < n
+            lvl = bot + (top - bot) * k / n
+            isCE = k * 2 == n
+            org_lines.push(line.new(prevT, lvl, time, lvl, xloc = xloc.bar_time, extend = extend.right, color = color.new(org_col, isCE ? 0 : 40), style = isCE ? line.style_dashed : line.style_dotted))
+            cnt += 1
+            k += 1
+        org_counts.push(cnt)
+        org_labels.push(label.new(time, (top + bot) / 2, txt, xloc = xloc.bar_time, style = label.style_label_left, color = color.new(org_col, 100), textcolor = border, size = size.small))
+        while org_boxes.size() > org_keep
+            org_boxes.shift().delete()
+            org_labels.shift().delete()
+            c = org_counts.shift()
+            while c > 0
+                org_lines.shift().delete()
+                c -= 1
+
+org_inRTH = not na(time(timeframe.period, org_sess, "America/New_York"))
+var float org_close  = na
+var int   org_closeT = na
+if org_inRTH and not org_inRTH[1] and org_on and timeframe.isintraday and not na(org_close)
+    org_add(org_close, org_closeT)
+if org_inRTH
+    org_close  := close
+    org_closeT := time
+
+// On the latest candle: end the drawings there (they still extend right) so TradingView keeps them on screen
+// at every zoom, and keep the names just right of the latest candle.
+if barstate.islast
+    org_x = time + 2 * timeframe.in_seconds() * 1000
+    for b in org_boxes
+        b.set_right(time)
+    for l in org_lines
+        l.set_x2(time)
+    for l in org_labels
+        l.set_x(org_x)
