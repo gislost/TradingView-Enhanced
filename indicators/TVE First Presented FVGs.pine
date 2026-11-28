@@ -1,5 +1,5 @@
 //@version=6
-// @description First presented FVGs of the New York session, extended right: FPFVG (first FVG in 09:30-10:00), FPDFVG (first one with displacement), FPRFVG (first opposite FVG after the FPFVG) and the Silver Bullet FPFVG (first FVG in 10:00-11:00). Shows the last week by default. Each day's pick can be corrected or hidden in Settings > Fix a day.
+// @description First presented FVGs of the New York session, extended right: FPFVG (first FVG in 09:30-10:00), FPDFVG (first one with displacement), FPRFVG (first opposite FVG after the FPFVG) and the Silver Bullet FPFVG (first FVG in 10:00-11:00). FPFVG and SB FPFVG use the true FPFVG rule by default: the gap's middle candle has to break the range of every candle since the window opened, or the gap is disqualified. Shows the last week by default. Each day's pick can be corrected or hidden in Settings > Fix a day.
 indicator("TVE First Presented FVGs", "TVE FPFVG", overlay = true, max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
 
 // @tve-body  (everything below this line is copied into TVE All-in-One, so names start with fp_)
@@ -15,6 +15,8 @@ fp_minTicks = input.int(0, "Minimum gap (ticks)", minval = 0, group = fp_G)
 fp_tfIn     = input.timeframe("1", "Find gaps on", group = fp_G, tooltip = "Candle size the gaps are looked for on, whatever the chart's timeframe, so they stay the same when you switch timeframes. A chart with smaller candles uses its own.")
 fp_showCE   = input.bool(true, "CE (50%) line", group = fp_G)
 fp_showDay  = input.bool(true, "Weekday in label", group = fp_G)
+fp_rule     = input.string("True FPFVG", "FPFVG rule", options = ["True FPFVG", "First gap"], group = fp_G, tooltip = "True FPFVG: the gap's middle (displacement) candle has to break above (bullish) or below (bearish) the range of every candle since the window opened, from 09:30 for the FPFVG and 10:00 for the SB FPFVG. A gap still inside that range is not a true inefficiency and is disqualified. First gap: any first gap counts.")
+fp_dq       = input.string("Show it crossed out", "Disqualified first gap", options = ["Show it crossed out", "Use the next true gap", "No FPFVG that day"], group = fp_G, tooltip = "What happens when the window's first gap is disqualified (True FPFVG rule). Show it crossed out: drawn faded with a ✗, and no other gap replaces it. Use the next true gap: the first later gap in the window that qualifies. No FPFVG that day: nothing is drawn.")
 
 fp_on0  = input.bool(true, "FPFVG", inline = "t0", group = fp_G)
 fp_col0 = input.color(color.new(#FFC857, 78), "", inline = "t0", group = fp_G)
@@ -66,14 +68,18 @@ fp_on(int k) => fp_all and (k == 0 ? fp_on0 : k == 1 ? fp_on1 : k == 2 ? fp_on2 
 fp_col(int k) => k == 0 ? fp_col0 : k == 1 ? fp_col1 : k == 2 ? fp_col2 : fp_col3
 
 // Finds each type's gap for the day. Runs on fp_tf candles (see below), so the result is the same on every
-// chart timeframe. Returns, per type: top, bottom, time of the 1st, 2nd and 3rd candle, and whether it was fixed.
+// chart timeframe. Returns, per type: top, bottom, time of the 1st, 2nd and 3rd candle, and its status (0 automatic, 1 fixed by hand, 2 disqualified).
 fp_scan() =>
     var tops = array.new_float(4, na)
     var bots = array.new_float(4, na)
     var tLs  = array.new_int(4, na)
     var tMs  = array.new_int(4, na)
     var tRs  = array.new_int(4, na)
-    var fixs = array.new_bool(4, false)
+    var fixs = array.new_int(4, 0)
+    var float rHi0 = na   // range of the FPFVG window so far (up to the gap's 1st candle)
+    var float rLo0 = na
+    var float rHi3 = na   // same for the Silver Bullet window
+    var float rLo3 = na
     var found = array.new_bool(4, false)
     var int curDay = na
     var int dir = 0     // direction of the day's FPFVG: 1 bull, -1 bear
@@ -94,12 +100,24 @@ fp_scan() =>
                 found.set(i, false)
             dir := 0
             fpBar := na
+            rHi0 := na
+            rLo0 := na
+            rHi3 := na
+            rLo3 := na
+        // Grow each window's range with the gap's 1st candle (bar [2]), so it covers every candle before the middle one.
+        if sameDay and inWin[2]
+            rHi0 := math.max(nz(rHi0, high[2]), high[2])
+            rLo0 := math.min(nz(rLo0, low[2]), low[2])
+        if sameDay and inSB[2]
+            rHi3 := math.max(nz(rHi3, high[2]), high[2])
+            rLo3 := math.min(nz(rLo3, low[2]), low[2])
         for k = 0 to 3
             if not found.get(k)
                 [mode, ft] = fp_fix(k, dk)
                 float top = na
                 float bot = na
-                bool fixed = false
+                int st = 0
+                bool skip = false
                 if mode == "Use this candle"
                     // The chosen middle candle is the previous bar: take the gap between candles 1 and 3,
                     // or the wicks around it if there's no clean gap.
@@ -107,7 +125,7 @@ fp_scan() =>
                         up = close[1] >= open[1]
                         top := up ? math.max(low, high[2]) : math.max(low[2], high)
                         bot := up ? math.min(low, high[2]) : math.min(low[2], high)
-                        fixed := true
+                        st := 1
                         if k == 0
                             dir := up ? 1 : -1
                             fpBar := bar_index
@@ -117,17 +135,30 @@ fp_scan() =>
                     if sameDay and inW and want and (k != 1 or disp) and (k != 2 or bar_index > nz(fpBar, bar_index))
                         top := bull ? low : low[2]
                         bot := bull ? high[2] : high
-                        if k == 0
+                        // True FPFVG: the middle candle must break the window's range so far.
+                        if fp_rule == "True FPFVG" and (k == 0 or k == 3)
+                            rHi = k == 0 ? rHi0 : rHi3
+                            rLo = k == 0 ? rLo0 : rLo3
+                            isTrue = bull ? high[1] > rHi : low[1] < rLo
+                            if not isTrue
+                                if fp_dq == "Show it crossed out"
+                                    st := 2
+                                else if fp_dq == "No FPFVG that day"
+                                    found.set(k, true)
+                                    skip := true
+                                else
+                                    skip := true
+                        if k == 0 and not skip
                             dir := bull ? 1 : -1
                             fpBar := bar_index
-                if not na(top)
+                if not na(top) and not skip
                     found.set(k, true)
                     tops.set(k, top)
                     bots.set(k, bot)
                     tLs.set(k, time[2])
                     tMs.set(k, time[1])
                     tRs.set(k, time)
-                    fixs.set(k, fixed)
+                    fixs.set(k, st)
     [tops.get(0), bots.get(0), tLs.get(0), tMs.get(0), tRs.get(0), fixs.get(0),
      tops.get(1), bots.get(1), tLs.get(1), tMs.get(1), tRs.get(1), fixs.get(1),
      tops.get(2), bots.get(2), tLs.get(2), tMs.get(2), tRs.get(2), fixs.get(2),
@@ -145,15 +176,16 @@ var fp_objDay = array.new<int>()
 var fp_dayList = array.new<int>()
 var fp_lastR  = array.new_int(4, na)
 
-fp_draw(int k, float top, float bot, int tL, int tM, int tR, bool fixed) =>
+fp_draw(int k, float top, float bot, int tL, int tM, int tR, int st) =>
     // Draw each gap once, when it first shows up (its 3rd candle's time changes).
     if timeframe.isintraday and fp_on(k) and not na(tR) and (na(fp_lastR.get(k)) or tR != fp_lastR.get(k))
         fp_lastR.set(k, tR)
         dk = fp_dayKey(tM)
-        c = fp_col(k)
-        border = color.new(c, 0)
-        txt = fp_TYPES.get(k) + (fp_showDay ? " " + str.format_time(tM, "EEE", fp_TZ) : "") + (fixed ? " ✎" : "")
-        b = box.new(tL, top, tR, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = c)
+        dq = st == 2
+        c = dq ? color.new(fp_col(k), math.min(100, color.t(fp_col(k)) + 12)) : fp_col(k)
+        border = color.new(c, dq ? 50 : 0)
+        txt = fp_TYPES.get(k) + (fp_showDay ? " " + str.format_time(tM, "EEE", fp_TZ) : "") + (st == 1 ? " ✎" : dq ? " ✗" : "")
+        b = box.new(tL, top, tR, bot, xloc = xloc.bar_time, extend = extend.right, border_color = border, bgcolor = c, border_style = dq ? line.style_dotted : line.style_solid)
         mid = (top + bot) / 2
         l = fp_showCE ? line.new(tL, mid, tR, mid, xloc = xloc.bar_time, extend = extend.right, color = border, style = line.style_dashed) : na
         // The name sits at the right end, next to the price scale (moved along on the last bar below).
